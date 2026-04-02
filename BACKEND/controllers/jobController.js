@@ -6,7 +6,9 @@ export const createJob = asyncHandler(async (req, res) => {
   const job = await Job.create({
     ...req.body,
     skillsRequired: req.body.skillsRequired || [],
-    createdBy: req.user._id
+    createdBy: req.user._id,
+    isActive: true,     
+    isApproved: true
   });
 
   res.status(201).json({ message: "Job created successfully", job });
@@ -93,4 +95,31 @@ export const closeJob = asyncHandler(async (req, res) => {
   await job.save();
 
   res.json({ message: "Job closed successfully", job });
+});
+
+export const updateJobStatus = asyncHandler(async (req, res) => {
+  const job = await Job.findById(req.params.id);
+
+  if (!job) {
+    res.status(404);
+    throw new Error("Job not found.");
+  }
+
+  if (job.createdBy.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error("You can only update jobs you created.");
+  }
+
+  if (typeof req.body.isActive !== "boolean") {
+    res.status(400);
+    throw new Error("isActive must be provided as true or false.");
+  }
+
+  job.isActive = req.body.isActive;
+  await job.save();
+
+  res.json({
+    message: job.isActive ? "Job activated successfully" : "Job deactivated successfully",
+    job
+  });
 });

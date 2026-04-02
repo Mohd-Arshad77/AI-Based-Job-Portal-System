@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { authApi } from "../services/portalService.js";
+import { authApi } from "../services/api.js";
 
 const AuthContext = createContext(null);
 
@@ -47,40 +47,45 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
-  const login = async (values) => {
-    setLoading(true);
-    try {
-      const { data } = await authApi.login(values);
-      setToken(data.token);
-      setUser(data.user);
-      return { success: true, user: data.user };
-    } catch (error) {
-      const demoUser = buildDemoUser(values);
-      setToken("demo-token");
-      setUser(demoUser);
-      return { success: true, demo: true, user: demoUser, message: error.response?.data?.message || "Demo mode enabled." };
-    } finally {
-      setLoading(false);
-    }
-  };
+ const login = async (values) => {
+  setLoading(true);
+  try {
+    const { data } = await authApi.login(values);
 
-  const register = async (values) => {
-    setLoading(true);
-    try {
-      const payload = { ...values, role: "user" };
-      const { data } = await authApi.register(payload);
-      setToken(data.token);
-      setUser(data.user);
-      return { success: true, user: data.user };
-    } catch (error) {
-      const demoUser = buildDemoUser({ ...values, role: "user" });
-      setToken("demo-token");
-      setUser(demoUser);
-      return { success: true, demo: true, user: demoUser, message: error.response?.data?.message || "Demo account created." };
-    } finally {
-      setLoading(false);
-    }
-  };
+    setToken(data.token);
+    setUser(data.user);
+
+    return { success: true, user: data.user };
+
+  } catch (error) {
+    return {
+      success: false,   
+      message: error.response?.data?.message || "Invalid email or password"
+    };
+  } finally {
+    setLoading(false);
+  }
+};
+
+const register = async (values) => {
+  setLoading(true);
+  try {
+    const { data } = await authApi.register(values);
+
+    setToken(data.token);
+    setUser(data.user);
+
+    return { success: true, user: data.user };
+
+  } catch (error) {
+    return {
+      success: false,   
+      message: error.response?.data?.message || "Registration failed"
+    };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const logout = async () => {
     try {

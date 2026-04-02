@@ -1,12 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  color: #e2e8f0;
-  background:
-    radial-gradient(circle at top left, rgba(99, 102, 241, 0.32), transparent 26%),
-    radial-gradient(circle at top right, rgba(34, 211, 238, 0.2), transparent 28%),
-    radial-gradient(circle at bottom center, rgba(168, 85, 247, 0.16), transparent 32%),
-    linear-gradient(160deg, #050816 0%, #0d1430 42%, #0b1122 100%);
+  color: #0f172a;
+  background: #f8fafc;
   font-family: Inter, "Segoe UI", sans-serif;
 }
 
@@ -21,8 +17,8 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background: transparent;
-  color: #e2e8f0;
+  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+  color: #0f172a;
 }
 
 #root {
@@ -42,6 +38,6 @@ textarea {
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.35);
-  color: #fff;
+  background: rgba(37, 99, 235, 0.18);
+  color: #0f172a;
 }

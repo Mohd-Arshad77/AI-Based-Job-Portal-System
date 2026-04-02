@@ -9,7 +9,7 @@ function ProtectedRoute({ roles }) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6">
         <div className="w-full max-w-md">
-          <Loader label="Preparing your JobAI workspace..." />
+          <Loader label="Preparing your workspace..." />
         </div>
       </div>
     );
@@ -20,7 +20,7 @@ function ProtectedRoute({ roles }) {
   }
 
   if (roles && !roles.includes(user?.role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={user?.role === "recruiter" ? "/recruiter/manage" : "/dashboard"} replace />;
   }
 
   return <Outlet />;

@@ -1,107 +1,59 @@
-import { Link, NavLink } from "react-router-dom";
-import { ArrowRight, BriefcaseBusiness, Menu, Sparkles } from "lucide-react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { ArrowRight, BriefcaseBusiness } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const publicLinks = [
-  { to: "/", label: "Home" },
-  { to: "/jobs", label: "Jobs" },
-  { to: "/login", label: "Login" }
-];
-
 function Navbar() {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
+  const workspaceLink = user?.role === "recruiter" ? "/recruiter/manage" : "/dashboard";
+
   return (
-    <header className="sticky top-0 z-40">
-      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between rounded-full border border-white/12 bg-slate-950/35 px-5 py-3 shadow-[0_16px_60px_rgba(15,23,42,0.24)] backdrop-blur-2xl">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 via-indigo-400 to-violet-500 text-slate-950 shadow-lg shadow-cyan-300/20">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-lg font-semibold tracking-tight text-white">JobAI</p>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">AI Job Portal</p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-2 md:flex">
-            {publicLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.to === "/"}
-                className={({ isActive }) =>
-                  `rounded-full px-4 py-2 text-sm font-medium transition ${
-                    isActive ? "bg-white/12 text-white" : "text-slate-300 hover:bg-white/8 hover:text-white"
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-3">
-            {user ? (
-              <>
-                <Link
-                  to={user.role === "recruiter" ? "/manage-jobs" : "/dashboard"}
-                  className="hidden rounded-full border border-white/12 bg-white/8 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/12 sm:inline-flex"
-                >
-                  Workspace
-                </Link>
-                <button
-                  onClick={logout}
-                  className="rounded-full border border-white/12 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className="hidden text-sm font-medium text-slate-300 transition hover:text-white sm:inline-flex">
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-300 via-indigo-400 to-violet-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-indigo-500/25 transition hover:scale-[1.02]"
-                >
-                  Get Started
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </>
-            )}
-            <button className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 text-slate-300 md:hidden">
-              <Menu className="h-5 w-5" />
-            </button>
+    <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
+        <Link to="/" className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm">
+            <BriefcaseBusiness className="h-5 w-5" />
           </div>
+          <div className="flex items-center gap-3">
+            <div>
+              <p className="text-2xl font-semibold text-slate-950">JobFlow</p>
+            </div>
+            {user ? <span className="rounded-full bg-slate-100 px-4 py-1 text-sm font-medium text-slate-700 capitalize">{user.role}</span> : null}
+          </div>
+        </Link>
+
+        <nav className="hidden items-center gap-2 md:flex">
+          {user?.role !== "recruiter" && <NavLink to="/" end className={({ isActive }) => `rounded-full px-4 py-2 text-sm font-medium ${isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}>Home</NavLink>}
+          {!user ? <NavLink to="/login" className={({ isActive }) => `rounded-full px-4 py-2 text-sm font-medium ${isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}>Login</NavLink> : null}
+          {user?.role === "user" ? <NavLink to="/jobs" className={({ isActive }) => `rounded-full px-4 py-2 text-sm font-medium ${isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}>Jobs</NavLink> : null}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          {user ? (
+            <>
+              <span className="hidden text-sm text-slate-500 lg:inline">{user.company || user.name}</span>
+              <Link to={workspaceLink} className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 sm:inline-flex">
+                Workspace
+              </Link>
+              <button onClick={handleLogout} className="text-sm font-semibold text-slate-950 hover:text-blue-700">
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link to="/register" className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+              Get Started
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
       </div>
     </header>
-  );
-}
-
-export function AppTopbar({ title, subtitle }) {
-  const { user } = useAuth();
-
-  return (
-    <div className="flex flex-col gap-5 rounded-[2rem] border border-white/12 bg-white/8 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur-2xl sm:flex-row sm:items-center sm:justify-between sm:p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-200/80">AI-Based Job Portal System</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{title}</h1>
-        {subtitle ? <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300 sm:text-base">{subtitle}</p> : null}
-      </div>
-      <div className="flex items-center gap-4 rounded-[1.6rem] border border-white/10 bg-slate-950/28 px-4 py-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300/90 via-indigo-400/90 to-violet-500/90 text-slate-950">
-          <BriefcaseBusiness className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-white">{user?.name || "Guest User"}</p>
-          <p className="text-xs uppercase tracking-[0.28em] text-slate-400">{user?.role || "workspace"}</p>
-        </div>
-      </div>
-    </div>
   );
 }
 

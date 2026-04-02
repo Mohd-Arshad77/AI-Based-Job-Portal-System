@@ -1,12 +1,12 @@
 const statusClasses = {
-  Pending: "border-amber-300/25 bg-amber-300/12 text-amber-100",
-  Shortlisted: "border-violet-300/25 bg-violet-300/12 text-violet-100",
-  Rejected: "border-rose-300/25 bg-rose-300/12 text-rose-100",
-  Hired: "border-emerald-300/25 bg-emerald-300/12 text-emerald-100"
+  Pending: "border-yellow-200 bg-yellow-50 text-yellow-700",
+  Shortlisted: "border-blue-200 bg-blue-50 text-blue-700",
+  Rejected: "border-rose-200 bg-rose-50 text-rose-700",
+  Hired: "border-emerald-200 bg-emerald-50 text-emerald-700"
 };
 
 function StatusBadge({ status }) {
-  return <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses[status] || "border-white/15 bg-white/10 text-white"}`}>{status}</span>;
+  return <span className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusClasses[status] || "border-slate-200 bg-slate-50 text-slate-700"}`}>{status}</span>;
 }
 
 export default StatusBadge;

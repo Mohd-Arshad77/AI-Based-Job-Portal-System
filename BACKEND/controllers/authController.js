@@ -55,9 +55,22 @@ export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email }).select("+password +refreshToken");
 
-  if (!user || !(await user.matchPassword(password))) {
-    res.status(401);
-    throw new Error("Invalid email or password.");
+  if (!user) {
+    return res.status(401).json({
+      message: "Invalid email or password"
+    });
+  }
+
+  console.log("Entered password:", password);
+  console.log("Stored password:", user.password);
+
+  const isMatch = await user.matchPassword(password);
+  console.log("Password match:", isMatch);
+
+  if (!isMatch) {
+    return res.status(401).json({
+      message: "Invalid email or password"
+    });
   }
 
   const accessToken = generateAccessToken(user);

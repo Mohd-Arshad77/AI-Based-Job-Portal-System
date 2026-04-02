@@ -28,17 +28,19 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function savePassword(next) {
-  if (!this.isModified("password")) {
-    next();
-    return;
-  }
+  if (!this.isModified("password")) return next();
 
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
-userSchema.methods.matchPassword = function matchPassword(password) {
-  return bcrypt.compare(password, this.password);
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) {
+    console.log("Password field missing in user document");
+    return false;
+  }
+
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
 export default mongoose.model("User", userSchema);
