@@ -1,5 +1,6 @@
 import Application from "../models/Application.js";
 import Job from "../models/Job.js";
+import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 export const applyJob = asyncHandler(async (req, res) => {
@@ -7,7 +8,7 @@ export const applyJob = asyncHandler(async (req, res) => {
 
   if (!job || !job.isActive || !job.isApproved) {
     res.status(400);
-    throw new Error("This job is not accepting applications.");
+    throw new Error("This job is not accepting applications at the moment.");
   }
 
   const existingApplication = await Application.findOne({ user: req.user._id, job: job._id });
@@ -16,10 +17,22 @@ export const applyJob = asyncHandler(async (req, res) => {
     throw new Error("You have already applied for this job.");
   }
 
+  const user = await User.findById(req.user._id);
+  
+  if (req.body.name) user.name = req.body.name;
+  if (req.body.experience) user.experience = req.body.experience;
+  
+  if (req.file) {
+    user.resumeUrl = req.file.path;
+  }
+  
+  await user.save(); 
+
   const application = await Application.create({ user: req.user._id, job: job._id });
 
   res.status(201).json({ message: "Application submitted successfully", application });
 });
+
 
 export const getApplications = asyncHandler(async (req, res) => {
   let query = {};

@@ -39,7 +39,10 @@ export const jobsApi = {
 };
 
 export const applicationsApi = {
-  apply: (jobId) => api.post(`/applications/${jobId}`),
+apply: (jobId, formData) => api.post(`/applications/${jobId}`, formData, { 
+    headers: { "Content-Type": "multipart/form-data" } 
+  }),
+  
   list: () => api.get("/applications"),
   updateStatus: (id, status) => api.patch(`/applications/${id}/status`, { status })
 };
