@@ -27,11 +27,12 @@ export const updateJob = asyncHandler(async (req, res) => {
     throw new Error("You can only edit jobs you created.");
   }
 
-  const { title, company, location, experienceRequired, skillsRequired, description } = req.body;
+  const { title, company, location, salary, experienceRequired, skillsRequired, description } = req.body;
 
   job.title = title ?? job.title;
   job.company = company ?? job.company;
   job.location = location ?? job.location;
+  job.salary = salary ?? job.salary;
   job.experienceRequired = experienceRequired ?? job.experienceRequired;
   job.skillsRequired = Array.isArray(skillsRequired) ? skillsRequired : job.skillsRequired;
   job.description = description ?? job.description;

@@ -47,4 +47,9 @@ apply: (jobId, formData) => api.post(`/applications/${jobId}`, formData, {
   updateStatus: (id, status) => api.patch(`/applications/${id}/status`, { status })
 };
 
+export const interviewApi = {
+  create: (payload) => api.post("/interviews", payload),
+  list: () => api.get("/interviews")
+};
+
 export default api;

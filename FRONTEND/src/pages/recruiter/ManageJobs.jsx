@@ -14,10 +14,18 @@ import {
 } from "lucide-react";
 import Layout from "../../components/Layout.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { applicationsApi, jobsApi } from "../../services/api.js";
+import { applicationsApi, interviewApi, jobsApi } from "../../services/api.js";
 
-const emptyForm = { title: "", company: "", location: "", experienceRequired: "", skillsRequired: "", description: "" };
-const initialCreateForm = { title: "", company: "", location: "", type: "Full-time", minSalary: "", maxSalary: "", description: "", skillsRequired: "" };
+const emptyForm = { title: "", company: "", location: "", experienceRequired: "", salary: "", skillsRequired: "", description: "" };
+const initialCreateForm = { title: "", company: "", location: "", type: "Full-time", salary: "", description: "", skillsRequired: "" };
+const initialInterviewForm = {
+  applicationId: "",
+  scheduledAt: "",
+  mode: "Video Call",
+  meetingLink: "",
+  location: "",
+  notes: ""
+};
 const statusOptions = ["Pending", "Shortlisted", "Rejected", "Hired"];
 
 function StatCard({ icon: Icon, value, label, tint }) {
@@ -40,6 +48,7 @@ function ManageJobs() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [interviews, setInterviews] = useState([]);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState(() => (window.location.pathname.includes("create") ? "create" : "jobs"));
   const [editingJobId, setEditingJobId] = useState("");
@@ -47,14 +56,48 @@ function ManageJobs() {
   const [openMenuId, setOpenMenuId] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [createForm, setCreateForm] = useState(initialCreateForm);
+  const [interviewForm, setInterviewForm] = useState(initialInterviewForm);
   const [createMessage, setCreateMessage] = useState("");
+  const [interviewFeedback, setInterviewFeedback] = useState({ type: "", text: "" });
+  const [isSchedulingInterview, setIsSchedulingInterview] = useState(false);
   const detailsRef = useRef(null);
   const editRef = useRef(null);
   const menuRefs = useRef({});
 
+  const fetchInterviews = async () => {
+    try {
+      const { data } = await interviewApi.list();
+      setInterviews(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to fetch interviews:", error);
+      setInterviews([]);
+      setInterviewFeedback({
+        type: "error",
+        text: error.response?.data?.message || "Could not load interviews."
+      });
+    }
+  };
+
   useEffect(() => {
-    jobsApi.list().then(({ data }) => setJobs(data)).catch(() => setJobs([]));
-    applicationsApi.list().then(({ data }) => setApplications(data)).catch(() => setApplications([]));
+    const fetchDashboardData = async () => {
+      try {
+        const [{ data: jobsData }, { data: applicationsData }] = await Promise.all([
+          jobsApi.list(),
+          applicationsApi.list()
+        ]);
+
+        setJobs(jobsData);
+        setApplications(applicationsData);
+      } catch (error) {
+        console.error("Failed to fetch recruiter dashboard data:", error);
+        setJobs([]);
+        setApplications([]);
+      }
+
+      await fetchInterviews();
+    };
+
+    fetchDashboardData();
   }, []);
 
   useEffect(() => {
@@ -85,10 +128,40 @@ function ManageJobs() {
     return acc;
   }, {}), [applications]);
 
+  const interviewApplicationIds = useMemo(() => new Set(
+    interviews
+      .map((interview) => interview.application?._id || interview.application)
+      .filter(Boolean)
+  ), [interviews]);
+
+  const availableInterviewApplications = useMemo(() => applications.filter((application) => (
+    application.status === "Shortlisted" && !interviewApplicationIds.has(application._id)
+  )), [applications, interviewApplicationIds]);
+
   const selectedJob = useMemo(() => jobs.find((job) => job._id === selectedJobId) || null, [jobs, selectedJobId]);
   const totalApplicants = applications.length;
   const activeJobs = jobs.filter((job) => job.isActive).length;
-  const scheduledInterviews = applications.filter((app) => app.status === "Shortlisted" || app.status === "Interview");
+  const scheduledInterviews = interviews;
+
+  useEffect(() => {
+    if (!availableInterviewApplications.length) {
+      setInterviewForm((current) => (
+        current.applicationId ? { ...current, applicationId: "" } : current
+      ));
+      return;
+    }
+
+    const hasSelectedApplication = availableInterviewApplications.some(
+      (application) => application._id === interviewForm.applicationId
+    );
+
+    if (!hasSelectedApplication) {
+      setInterviewForm((current) => ({
+        ...current,
+        applicationId: availableInterviewApplications[0]._id
+      }));
+    }
+  }, [availableInterviewApplications, interviewForm.applicationId]);
 
   const scrollToSection = (ref) => {
     setTimeout(() => {
@@ -109,6 +182,7 @@ function ManageJobs() {
       title: job.title || "",
       company: job.company || "",
       location: job.location || "",
+      salary: job.salary || "",
       experienceRequired: job.experienceRequired || "",
       skillsRequired: (job.skillsRequired || []).join(", "),
       description: job.description || ""
@@ -170,7 +244,7 @@ function ManageJobs() {
         company: createForm.company || user?.company || "Company",
         location: createForm.location,
         type: createForm.type,
-        salary: createForm.minSalary || createForm.maxSalary ? `$${createForm.minSalary || 0} - $${createForm.maxSalary || 0}` : "",
+        salary: createForm.salary || "",
         description: createForm.description,
         skillsRequired: createForm.skillsRequired.split(",").map((item) => item.trim()).filter(Boolean)
       });
@@ -182,6 +256,71 @@ function ManageJobs() {
     } catch (error) {
       setCreateMessage(error.response?.data?.message || "Could not create job.");
     }
+  };
+
+  const handleScheduleInterview = async () => {
+    if (!interviewForm.applicationId) {
+      setInterviewFeedback({ type: "error", text: "Please select an applicant." });
+      return;
+    }
+
+    if (!interviewForm.scheduledAt) {
+      setInterviewFeedback({ type: "error", text: "Please choose an interview date and time." });
+      return;
+    }
+
+    try {
+      setIsSchedulingInterview(true);
+      setInterviewFeedback({ type: "", text: "" });
+
+      const payload = {
+        applicationId: interviewForm.applicationId,
+        scheduledAt: new Date(interviewForm.scheduledAt).toISOString(),
+        mode: interviewForm.mode,
+        meetingLink: interviewForm.meetingLink.trim(),
+        location: interviewForm.location.trim(),
+        notes: interviewForm.notes.trim()
+      };
+
+      const { data } = await interviewApi.create(payload);
+
+      setInterviewFeedback({
+        type: "success",
+        text: data.message || "Interview scheduled successfully."
+      });
+
+      await fetchInterviews();
+      const { data: applicationsData } = await applicationsApi.list();
+      setApplications(applicationsData);
+      setInterviewForm((current) => ({
+        ...initialInterviewForm,
+        mode: current.mode
+      }));
+    } catch (error) {
+      console.error("Failed to schedule interview:", error);
+      setInterviewFeedback({
+        type: "error",
+        text: error.response?.data?.message || "Could not schedule interview."
+      });
+    } finally {
+      setIsSchedulingInterview(false);
+    }
+  };
+
+  const formatInterviewDate = (value) => {
+    if (!value) {
+      return "Date not set";
+    }
+
+    return new Date(value).toLocaleDateString();
+  };
+
+  const formatInterviewTime = (value) => {
+    if (!value) {
+      return "Time not set";
+    }
+
+    return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   const getStatusBadge = (status) => {
@@ -365,6 +504,7 @@ function ManageJobs() {
                 <input className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xl text-slate-900 outline-none" placeholder="Company" value={form.company} onChange={(event) => setForm({ ...form, company: event.target.value })} />
                 <input className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xl text-slate-900 outline-none" placeholder="Location" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} />
                 <input className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xl text-slate-900 outline-none" placeholder="Experience Required" value={form.experienceRequired} onChange={(event) => setForm({ ...form, experienceRequired: event.target.value })} />
+                <input className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xl text-slate-900 outline-none" placeholder="Salary" value={form.salary} onChange={(event) => setForm({ ...form, salary: event.target.value })} />
                 <textarea className="min-h-28 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xl text-slate-900 outline-none md:col-span-2" placeholder="Required skills comma separated" value={form.skillsRequired} onChange={(event) => setForm({ ...form, skillsRequired: event.target.value })} />
                 <textarea className="min-h-40 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xl text-slate-900 outline-none md:col-span-2" placeholder="Job description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
                 <div className="md:col-span-2 flex flex-wrap gap-4">
@@ -438,11 +578,114 @@ function ManageJobs() {
         <div className="mt-10 space-y-6">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-4xl font-bold text-slate-950">Scheduled Interviews</h2>
-            <button type="button" className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-xl font-medium text-slate-700 shadow-sm hover:border-blue-200 hover:bg-slate-50">
-              <Plus className="h-6 w-6" />
-              Schedule Interview
-            </button>
+            <span className="rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+              {scheduledInterviews.length} scheduled
+            </span>
           </div>
+
+          <div className="rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 className="text-3xl font-semibold text-slate-950">Create Interview</h3>
+                <p className="mt-2 text-lg text-slate-500">Choose a shortlisted applicant and schedule the interview details below.</p>
+              </div>
+              {!availableInterviewApplications.length ? (
+                <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">
+                  No shortlisted applicants available
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <div className="xl:col-span-1">
+                <label className="mb-3 block text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Applicant</label>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-700 outline-none"
+                  value={interviewForm.applicationId}
+                  onChange={(event) => setInterviewForm({ ...interviewForm, applicationId: event.target.value })}
+                >
+                  {availableInterviewApplications.length ? availableInterviewApplications.map((application) => (
+                    <option key={application._id} value={application._id}>
+                      {(application.user?.name || "Applicant")} - {(application.job?.title || "Unknown Job")}
+                    </option>
+                  )) : <option value="">No shortlisted applicants</option>}
+                </select>
+              </div>
+
+              <div className="xl:col-span-1">
+                <label className="mb-3 block text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Date & Time</label>
+                <input
+                  type="datetime-local"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-700 outline-none"
+                  value={interviewForm.scheduledAt}
+                  onChange={(event) => setInterviewForm({ ...interviewForm, scheduledAt: event.target.value })}
+                />
+              </div>
+
+              <div className="xl:col-span-1">
+                <label className="mb-3 block text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Mode</label>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-700 outline-none"
+                  value={interviewForm.mode}
+                  onChange={(event) => setInterviewForm({ ...interviewForm, mode: event.target.value })}
+                >
+                  <option>Video Call</option>
+                  <option>Phone</option>
+                  <option>Onsite</option>
+                </select>
+              </div>
+
+              <div className="md:col-span-2 xl:col-span-1">
+                <label className="mb-3 block text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Meeting Link</label>
+                <input
+                  type="url"
+                  placeholder="https://meet.google.com/..."
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-700 outline-none"
+                  value={interviewForm.meetingLink}
+                  onChange={(event) => setInterviewForm({ ...interviewForm, meetingLink: event.target.value })}
+                />
+              </div>
+
+              <div className="md:col-span-2 xl:col-span-1">
+                <label className="mb-3 block text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Location</label>
+                <input
+                  type="text"
+                  placeholder="Office / City / Venue"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-700 outline-none"
+                  value={interviewForm.location}
+                  onChange={(event) => setInterviewForm({ ...interviewForm, location: event.target.value })}
+                />
+              </div>
+
+              <div className="md:col-span-2 xl:col-span-1 flex items-end">
+                <button
+                  type="button"
+                  onClick={handleScheduleInterview}
+                  disabled={!availableInterviewApplications.length || isSchedulingInterview}
+                  className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                >
+                  <Plus className="h-5 w-5" />
+                  {isSchedulingInterview ? "Scheduling..." : "Schedule Interview"}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <label className="mb-3 block text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Notes</label>
+              <textarea
+                placeholder="Add preparation notes or instructions for the candidate"
+                className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-700 outline-none"
+                value={interviewForm.notes}
+                onChange={(event) => setInterviewForm({ ...interviewForm, notes: event.target.value })}
+              />
+            </div>
+          </div>
+
+          {interviewFeedback.text ? (
+            <p className={`text-lg ${interviewFeedback.type === "error" ? "text-rose-600" : "text-emerald-600"}`}>
+              {interviewFeedback.text}
+            </p>
+          ) : null}
 
           {scheduledInterviews.length ? scheduledInterviews.map((interview) => (
             <div key={interview._id} className="rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
@@ -455,19 +698,28 @@ function ManageJobs() {
                     <h3 className="text-3xl font-bold text-slate-950">{interview.user?.name || "Applicant"}</h3>
                     <p className="mt-2 text-2xl text-slate-600">{interview.job?.title || "Unknown Role"}</p>
                     <div className="mt-4 flex flex-wrap items-center gap-6 text-xl text-slate-600">
-                      <span className="font-medium text-slate-900">{new Date(Date.now() + 86400000).toLocaleDateString()}</span>
-                      <span>10:00 AM</span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">Video Call</span>
+                      <span className="font-medium text-slate-900">{formatInterviewDate(interview.scheduledAt)}</span>
+                      <span>{formatInterviewTime(interview.scheduledAt)}</span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">{interview.mode || "Not set"}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-4">
-                  <button type="button" className="rounded-2xl border border-slate-200 bg-white px-6 py-4 text-xl font-medium text-slate-700 hover:border-blue-200 hover:bg-slate-50">
-                    Reschedule
-                  </button>
-                  <button type="button" className="rounded-2xl bg-blue-600 px-6 py-4 text-xl font-medium text-white hover:bg-blue-700">
-                    Join Meeting
-                  </button>
+                  {interview.location ? (
+                    <span className="rounded-2xl border border-slate-200 bg-white px-6 py-4 text-base font-medium text-slate-700">
+                      {interview.location}
+                    </span>
+                  ) : null}
+                  {interview.meetingLink ? (
+                    <a
+                      href={interview.meetingLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-2xl bg-blue-600 px-6 py-4 text-xl font-medium text-white hover:bg-blue-700"
+                    >
+                      Join Meeting
+                    </a>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -487,6 +739,11 @@ function ManageJobs() {
               <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. Senior Frontend Developer" value={createForm.title} onChange={(event) => setCreateForm({ ...createForm, title: event.target.value })} />
             </div>
 
+            <div>
+              <label className="mb-3 block text-2xl font-medium text-slate-950">Company Name</label>
+              <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. Meta, Optional" value={createForm.company} onChange={(event) => setCreateForm({ ...createForm, company: event.target.value })} />
+            </div>
+
             <div className="grid gap-8 md:grid-cols-2">
               <div>
                 <label className="mb-3 block text-2xl font-medium text-slate-950">Location</label>
@@ -504,15 +761,9 @@ function ManageJobs() {
               </div>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-2">
-              <div>
-                <label className="mb-3 block text-2xl font-medium text-slate-950">Min Salary</label>
-                <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. 80000" value={createForm.minSalary} onChange={(event) => setCreateForm({ ...createForm, minSalary: event.target.value })} />
-              </div>
-              <div>
-                <label className="mb-3 block text-2xl font-medium text-slate-950">Max Salary</label>
-                <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. 120000" value={createForm.maxSalary} onChange={(event) => setCreateForm({ ...createForm, maxSalary: event.target.value })} />
-              </div>
+            <div>
+              <label className="mb-3 block text-2xl font-medium text-slate-950">Salary</label>
+              <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. $80k - $120k / Competitive" value={createForm.salary} onChange={(event) => setCreateForm({ ...createForm, salary: event.target.value })} />
             </div>
 
             <div>
