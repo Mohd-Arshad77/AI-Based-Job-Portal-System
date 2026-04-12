@@ -1,0 +1,69 @@
+import User from "../models/User.js";
+import Job from "../models/Job.js";
+import Application from "../models/Application.js";
+import asyncHandler from "../utils/asyncHandler.js";
+import sendEmail from "../utils/sendEmail.js";
+import crypto from "crypto"; 
+
+export const getDashboardStats = asyncHandler(async (req, res) => {
+  const totalUsers = await User.countDocuments({ role: "user" });
+  const totalRecruiters = await User.countDocuments({ role: "recruiter" });
+  const totalJobs = await Job.countDocuments();
+  const totalApplications = await Application.countDocuments();
+
+  res.json({
+    totalUsers,
+    totalRecruiters,
+    totalJobs,
+    totalApplications,
+  });
+}); 
+export const inviteRecruiter = asyncHandler(async (req, res) => {
+  const { name, email, company } = req.body;
+
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error("A user with this email already exists");
+  }
+
+  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const tempPassword = crypto.randomBytes(8).toString("hex");
+
+  const recruiter = await User.create({
+    name,
+    email,
+    password: tempPassword,
+    role: "recruiter",
+    company,
+    isVerified: false,
+    verificationCode,
+  });
+
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+      <h2 style="color: #4F46E5; text-align: center;">Welcome to JobFlow, ${name}!</h2>
+      <p style="font-size: 16px; color: #333;">You have been invited by the Admin to join our platform as a Recruiter for <strong>${company}</strong>.</p>
+      
+      <div style="background-color: #f4f4f5; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+        <p style="margin: 0; font-size: 14px; color: #666;">Your Verification Code is:</p>
+        <h1 style="margin: 10px 0; color: #1e293b; letter-spacing: 5px;">${verificationCode}</h1>
+      </div>
+
+      <p style="font-size: 14px; color: #555;">Please use this code to verify your account and set up your permanent password.</p>
+      <br/>
+      <p style="font-size: 12px; color: #999; text-align: center;">If you did not expect this invitation, please ignore this email.</p>
+    </div>
+  `;
+
+  await sendEmail({
+    email: recruiter.email,
+    subject: "Invitation to join JobFlow as Recruiter",
+    html: emailHtml,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Recruiter invited successfully",
+  });
+});

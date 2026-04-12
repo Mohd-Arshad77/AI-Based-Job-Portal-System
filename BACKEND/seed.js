@@ -5,40 +5,35 @@ import User from "./models/User.js";
 
 dotenv.config();
 
-const seedRecruiter = async () => {
+const seedAdmin = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
 
-    await User.findOneAndDelete({ email: "recruiter@test.com" });
+    const adminEmail = process.env.ADMIN_EMAIL 
+    const adminPassword = process.env.ADMIN_PASSWORD
+    const adminName = process.env.ADMIN_NAME 
 
-    const hashedPassword = await bcrypt.hash("123456", 10);
+    await User.findOneAndDelete({ email: adminEmail });
+
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     await User.collection.insertOne({
-      name: "Recruiter",
-      email: "recruiter@test.com",
+      name: adminName,
+      email: adminEmail,
       password: hashedPassword,
-      role: "recruiter",
-      skills: [],
-      experience: "",
-      education: "",
-      resumeUrl: "",
-      parsedData: {
-        skills: [],
-        projects: [],
-        experience: [],
-        summary: ""
-      },
+      role: "admin",
+      isVerified: true,
       refreshToken: null,
       createdAt: new Date(),
       updatedAt: new Date()
     });
 
-    console.log("Recruiter created successfully");
+    console.log(" Admin created successfully with clean data!");
     process.exit();
   } catch (error) {
-    console.error(error);
+    console.error(" Error seeding admin: ", error);
     process.exit(1);
   }
 };
 
-seedRecruiter();
+seedAdmin();

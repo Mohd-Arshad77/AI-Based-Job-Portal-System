@@ -31,11 +31,20 @@ function Login() {
       if (!result.demo) {
         setMessage("Login successful.");
       }
-      navigate(result.user?.role === "recruiter" ? "/recruiter/manage" : "/dashboard");
+      
+      const role = result.user?.role;
+      if (role === "admin") {
+        navigate("/admin"); 
+      } else if (role === "recruiter") {
+        navigate("/recruiter/manage"); 
+      } else {
+        navigate("/jobs"); 
+      }
+
     } else {
       setMessage(result.message);
     }
-  };
+  }; // <--- ഈ ബ്രാക്കറ്റ് ആണ് വിട്ടുപോയിരുന്നത്! ഇപ്പോൾ അത് ശരിയാക്കി.
 
   return (
     <div className="relative flex h-screen w-screen items-center justify-center bg-[#F3F5F9] p-4 lg:p-8 font-sans selection:bg-indigo-200 overflow-hidden">

@@ -11,6 +11,7 @@ import applicationRoutes from "./routes/applicationRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import runRoutes from "./routes/runRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
+import adminRoutes from "./routes/adminRoutes.js"
 
 dotenv.config();
 connectDB();
@@ -33,6 +34,7 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/runs", runRoutes);
+app.use("/api/admin", adminRoutes)
 
 app.use(notFound);
 app.use(errorHandler);

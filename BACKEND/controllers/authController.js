@@ -96,3 +96,42 @@ export const logout = asyncHandler(async (req, res) => {
   res.clearCookie("refreshToken");
   res.json({ message: "Logout successful" });
 });
+// നിലവിലുള്ള കോഡിന് താഴെ ഇത് ചേർക്കുക:
+
+// @desc    Verify recruiter account and set new password
+// @route   POST /api/auth/verify-recruiter
+export const verifyRecruiter = asyncHandler(async (req, res) => {
+  const { email, verificationCode, newPassword } = req.body;
+
+  // 1. ഇമെയിൽ വെച്ച് റിക്രൂട്ടറെ കണ്ടുപിടിക്കുന്നു
+  const user = await User.findOne({ email, role: "recruiter" }).select("+password");
+
+  if (!user) {
+    res.status(404);
+    throw new Error("Recruiter not found");
+  }
+
+  // 2. അക്കൗണ്ട് ഇതിനോടകം വെരിഫൈഡ് ആണോ എന്ന് നോക്കുന്നു
+  if (user.isVerified) {
+    res.status(400);
+    throw new Error("Account is already verified. Please login.");
+  }
+
+  // 3. കോഡ് ശരിയാണോ എന്ന് പരിശോധിക്കുന്നു
+  if (user.verificationCode !== verificationCode) {
+    res.status(400);
+    throw new Error("Invalid verification code");
+  }
+
+  // 4. എല്ലാം ശരിയാണെങ്കിൽ പുതിയ പാസ്‌വേഡ് കൊടുത്ത് അക്കൗണ്ട് ആക്റ്റീവ് ആക്കുന്നു
+  user.password = newPassword; // User model ഇത് തനിയെ എൻക്രിപ്റ്റ് ചെയ്തോളും
+  user.isVerified = true;
+  user.verificationCode = undefined; // വെരിഫൈ ചെയ്തതുകൊണ്ട് ഇനി കോഡ് ആവശ്യമില്ല
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Account verified successfully. You can now login.",
+  });
+});

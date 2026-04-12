@@ -52,4 +52,14 @@ export const interviewApi = {
   list: () => api.get("/interviews")
 };
 
+export const adminApi = {
+  getStats: () => api.get("/admin/stats"),
+  
+  inviteRecruiter: (data) => api.post("/admin/invite-recruiter", data) 
+};
+export const recruiterApi = {
+  verifyAccount: (data) => api.post("/auth/verify-recruiter", data)
+};
+
+
 export default api;
