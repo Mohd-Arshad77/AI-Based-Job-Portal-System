@@ -32,7 +32,7 @@ function Dashboard() {
         {dashboardStats.map((card) => (
           <div key={card.label} className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-slate-500">{card.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-950">{card.value}</p>
+            <p className="mt-2 text-xl font-semibold text-slate-950">{card.value}</p>
             <p className="mt-2 text-sm text-slate-500">{card.note}</p>
           </div>
         ))}

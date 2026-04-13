@@ -15,7 +15,7 @@ function StatCard({ icon: Icon, value, label, tint }) {
           <Icon className="h-8 w-8" />
         </div>
         <div>
-          <p className="text-4xl font-bold text-slate-950">{value}</p>
+          <p className="text-2xl font-bold text-slate-950">{value}</p>
           <p className="mt-1 text-base text-slate-500">{label}</p>
         </div>
       </div>
@@ -55,11 +55,11 @@ function CreateJob() {
             <FileText className="h-8 w-8" />
           </div>
           <div className="flex items-center gap-4">
-            <h1 className="text-5xl font-bold tracking-tight text-slate-950">JobFlow</h1>
-            <span className="rounded-full bg-slate-100 px-5 py-2 text-xl font-medium text-slate-700">Recruiter</span>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-950">JobFlow</h1>
+            <span className="rounded-full bg-slate-100 px-5 py-2 text-sm font-medium text-slate-700">Recruiter</span>
           </div>
         </div>
-        <div className="flex items-center gap-8 text-xl">
+        <div className="flex items-center gap-6 text-base">
           <span className="text-slate-500">{user?.company || user?.name || "Recruiter"}</span>
           <NavLink to="/" className="font-semibold text-slate-950">Logout</NavLink>
         </div>
@@ -74,15 +74,15 @@ function CreateJob() {
 
       <div className="mt-10 border-b border-slate-200">
         <div className="flex flex-wrap items-center gap-8">
-          <Link to="/recruiter/manage" className="flex items-center gap-3 border-b-2 border-transparent pb-4 text-xl text-slate-600 transition hover:text-blue-600">
+          <Link to="/recruiter/manage" className="flex items-center gap-3 border-b-2 border-transparent pb-3 text-base text-slate-600 transition hover:text-blue-600">
             <FileText className="h-6 w-6" />
             My Jobs
           </Link>
-          <Link to="/recruiter/manage" className="flex items-center gap-3 border-b-2 border-transparent pb-4 text-xl text-slate-600 transition hover:text-blue-600">
+          <Link to="/recruiter/manage" className="flex items-center gap-3 border-b-2 border-transparent pb-3 text-base text-slate-600 transition hover:text-blue-600">
             <Users className="h-6 w-6" />
             Applicants
           </Link>
-          <span className="flex items-center gap-3 border-b-2 border-blue-600 pb-4 text-xl text-blue-600">
+          <span className="flex items-center gap-3 border-b-2 border-blue-600 pb-3 text-base text-blue-600">
             <Plus className="h-6 w-6" />
             Create Job
           </span>
@@ -92,18 +92,18 @@ function CreateJob() {
       <div className="mx-auto mt-12 max-w-5xl">
         <form onSubmit={handleSubmit} className="space-y-8">
           <div>
-            <label className="mb-3 block text-2xl font-medium text-slate-950">Job Title</label>
-            <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. Senior Frontend Developer" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <label className="mb-3 block text-sm font-semibold text-slate-950">Job Title</label>
+            <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-base text-slate-900 shadow-sm outline-none" placeholder="e.g. Senior Frontend Developer" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
 
           <div className="grid gap-8 md:grid-cols-2">
             <div>
-              <label className="mb-3 block text-2xl font-medium text-slate-950">Location</label>
-              <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. San Francisco, CA" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+              <label className="mb-3 block text-sm font-semibold text-slate-950">Location</label>
+              <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-base text-slate-900 shadow-sm outline-none" placeholder="e.g. San Francisco, CA" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
             <div>
-              <label className="mb-3 block text-2xl font-medium text-slate-950">Job Type</label>
-              <select className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <label className="mb-3 block text-sm font-semibold text-slate-950">Job Type</label>
+              <select className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-base text-slate-900 shadow-sm outline-none" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                 <option>Full-time</option>
                 <option>Part-time</option>
                 <option>Remote</option>
@@ -115,27 +115,27 @@ function CreateJob() {
 
           <div className="grid gap-8 md:grid-cols-2">
             <div>
-              <label className="mb-3 block text-2xl font-medium text-slate-950">Min Salary</label>
-              <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. 80000" value={form.minSalary} onChange={(e) => setForm({ ...form, minSalary: e.target.value })} />
+              <label className="mb-3 block text-sm font-semibold text-slate-950">Min Salary</label>
+              <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-base text-slate-900 shadow-sm outline-none" placeholder="e.g. 80000" value={form.minSalary} onChange={(e) => setForm({ ...form, minSalary: e.target.value })} />
             </div>
             <div>
-              <label className="mb-3 block text-2xl font-medium text-slate-950">Max Salary</label>
-              <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. 120000" value={form.maxSalary} onChange={(e) => setForm({ ...form, maxSalary: e.target.value })} />
+              <label className="mb-3 block text-sm font-semibold text-slate-950">Max Salary</label>
+              <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-base text-slate-900 shadow-sm outline-none" placeholder="e.g. 120000" value={form.maxSalary} onChange={(e) => setForm({ ...form, maxSalary: e.target.value })} />
             </div>
           </div>
 
           <div>
-            <label className="mb-3 block text-2xl font-medium text-slate-950">Job Description</label>
-            <textarea className="min-h-52 w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="Describe the role, responsibilities, and requirements..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <label className="mb-3 block text-sm font-semibold text-slate-950">Job Description</label>
+            <textarea className="min-h-52 w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-base text-slate-900 shadow-sm outline-none" placeholder="Describe the role, responsibilities, and requirements..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
 
           <div>
-            <label className="mb-3 block text-2xl font-medium text-slate-950">Required Skills (comma separated)</label>
-            <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-xl text-slate-900 shadow-sm outline-none" placeholder="e.g. React, TypeScript, Node.js" value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} />
+            <label className="mb-3 block text-sm font-semibold text-slate-950">Required Skills (comma separated)</label>
+            <input className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-5 text-base text-slate-900 shadow-sm outline-none" placeholder="e.g. React, TypeScript, Node.js" value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} />
           </div>
 
-          <button className="rounded-3xl bg-blue-600 px-8 py-5 text-xl font-semibold text-white shadow-sm hover:bg-blue-700">Create Job</button>
-          {message ? <p className="text-lg text-emerald-600">{message}</p> : null}
+          <button className="rounded-3xl bg-blue-600 px-8 py-5 text-base font-semibold text-white shadow-sm hover:bg-blue-700">Create Job</button>
+          {message ? <p className="text-base text-emerald-600">{message}</p> : null}
         </form>
       </div>
     </Layout>

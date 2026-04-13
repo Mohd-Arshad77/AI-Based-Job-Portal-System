@@ -35,10 +35,10 @@ function Applications() {
   return (
     <Layout>
       <div className="mx-auto max-w-7xl py-12 px-4 sm:px-6">
-        
+
         <div className="mb-12 border-b border-slate-200 pb-8 text-center md:text-left">
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">Track your journey</h1>
-          <p className="mt-3 text-xl text-slate-500">Monitor the status of your recent job applications here.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Track your journey</h1>
+          <p className="mt-3 text-base text-slate-500">Monitor the status of your recent job applications here.</p>
         </div>
 
         {loading ? (
@@ -51,7 +51,7 @@ function Applications() {
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {applications.map((app) => (
               <div key={app._id} className="group relative flex flex-col justify-between overflow-hidden rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm transition-all hover:-translate-y-2 hover:border-blue-300 hover:shadow-2xl hover:shadow-blue-600/10">
-                
+
                 <div className="relative z-10">
                   <div className="mb-6 flex items-center justify-between">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-blue-600/30">
@@ -59,10 +59,10 @@ function Applications() {
                     </div>
                     {getStatusBadge(app.status)}
                   </div>
-                  
-                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{app.job?.title || "Unknown Role"}</h3>
+
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">{app.job?.title || "Unknown Role"}</h3>
                   <p className="mt-1.5 font-semibold text-blue-600">{app.job?.company || "Company Unavailable"}</p>
-                  
+
                   <div className="mt-6 space-y-4">
                     <div className="flex items-center gap-4 text-base font-medium text-slate-500">
                       <MapPin className="h-5 w-5 text-slate-400" /> <span>{app.job?.location || "Location not given"}</span>
@@ -88,8 +88,8 @@ function Applications() {
              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white text-slate-300 shadow-sm hover:!scale-110 transition-transform">
                 <BriefcaseBusiness className="h-12 w-12" />
              </div>
-             <h3 className="mt-8 text-3xl font-bold text-slate-900">No Applications Yet</h3>
-             <p className="mt-3 text-lg text-slate-500 max-w-md">You haven't submitted any job applications yet. Go explore the jobs page and find your next role!</p>
+             <h3 className="mt-8 text-2xl font-bold text-slate-900">No Applications Yet</h3>
+             <p className="mt-3 text-base text-slate-500 max-w-md">You haven't submitted any job applications yet. Go explore the jobs page and find your next role!</p>
           </div>
         )}
 

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Mail, KeyRound, Lock, ArrowRight, CheckCircle2 } from "lucide-react";
-import { recruiterApi } from "../../services/api.js"; // നിങ്ങളുടെ ശരിയായ പാത്ത് കൊടുക്കുക
+import { recruiterApi } from "../../services/api.js";
 
 function VerifyRecruiter() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
-  // URL-ൽ email ഉണ്ടെങ്കിൽ അത് തനിയെ എടുക്കാൻ (ഉദാഹരണത്തിന് ഇമെയിലിലെ ലിങ്കിൽ നിന്ന് വരുമ്പോൾ)
+
+
   const defaultEmail = searchParams.get("email") || "";
 
   const [form, setForm] = useState({
@@ -25,19 +25,19 @@ function VerifyRecruiter() {
     e.preventDefault();
     setError("");
 
-    // പാസ്‌വേഡുകൾ രണ്ടും ഒന്നാണോ എന്ന് നോക്കുന്നു
+
     if (form.password !== form.confirmPassword) {
       return setError("Passwords do not match.");
     }
-    
-    // കോഡ് 6 അക്കമുണ്ടോ എന്ന് നോക്കുന്നു
+
+
     if (form.code.length !== 6) {
       return setError("Verification code must be 6 digits.");
     }
 
     setLoading(true);
     try {
-      // ബാക്ക്-എൻഡിലേക്ക് ഡാറ്റ അയക്കുന്നു (നമ്മൾ അടുത്ത ഘട്ടത്തിൽ ഇത് ഉണ്ടാക്കും)
+
       await recruiterApi.verifyAccount({
         email: form.email,
         verificationCode: form.code,
@@ -45,7 +45,7 @@ function VerifyRecruiter() {
       });
 
       setSuccess(true);
-      // 3 സെക്കൻഡിന് ശേഷം ലോഗിൻ പേജിലേക്ക് വിടുന്നു
+
       setTimeout(() => {
         navigate("/login");
       }, 3000);
@@ -60,8 +60,8 @@ function VerifyRecruiter() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 font-sans selection:bg-blue-200">
       <div className="w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-xl shadow-slate-200/50">
-        
-        {/* Header Section */}
+
+
         <div className="bg-blue-600 p-8 text-center text-white">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
             <KeyRound className="h-8 w-8 text-white" />
@@ -72,7 +72,7 @@ function VerifyRecruiter() {
           </p>
         </div>
 
-        {/* Form Section */}
+
         <div className="p-8">
           {success ? (
             <div className="flex flex-col items-center text-center">
@@ -84,7 +84,7 @@ function VerifyRecruiter() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              
+
               {error && (
                 <div className="rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-600 border border-rose-100">
                   {error}
@@ -152,8 +152,8 @@ function VerifyRecruiter() {
             </form>
           )}
         </div>
-        
-        {/* Footer */}
+
+
         {!success && (
           <div className="bg-slate-50 py-4 text-center text-sm font-medium text-slate-500">
             Already verified? <Link to="/login" className="text-blue-600 hover:underline">Sign in</Link>

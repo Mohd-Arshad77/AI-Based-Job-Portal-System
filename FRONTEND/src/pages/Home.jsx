@@ -66,7 +66,7 @@ function Home() {
               <Sparkles className="h-4 w-4" />
               Smart hiring and job discovery
             </div>
-            <h1 className="mt-8 text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
+            <h1 className="mt-8 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
               Find Your Dream Job with AI
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
@@ -99,7 +99,7 @@ function Home() {
             {stats.map((item) => (
               <div key={item.label} className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
                 <p className="text-sm text-slate-500">{item.label}</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-950">{item.value}</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">{item.value}</p>
               </div>
             ))}
           </div>
@@ -109,7 +109,7 @@ function Home() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-medium uppercase tracking-[0.35em] text-blue-700">Featured Jobs</p>
-              <h2 className="mt-3 text-3xl font-semibold text-slate-950">Latest jobs from the platform</h2>
+              <h2 className="mt-3 text-2xl font-semibold text-slate-950">Latest jobs from the platform</h2>
             </div>
             <Link to="/jobs" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
               Explore all jobs
@@ -126,7 +126,7 @@ function Home() {
         <section className="mt-20 rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="max-w-2xl">
             <p className="text-sm font-medium uppercase tracking-[0.35em] text-blue-700">How It Works</p>
-            <h2 className="mt-3 text-3xl font-semibold text-slate-950">A simple path from resume to application</h2>
+            <h2 className="mt-3 text-2xl font-semibold text-slate-950">A simple path from resume to application</h2>
           </div>
 
           <div className="mt-10 grid gap-5 lg:grid-cols-3">
@@ -138,7 +138,7 @@ function Home() {
                     <Icon className="h-6 w-6" />
                   </div>
                   <p className="mt-6 text-sm font-semibold uppercase tracking-[0.3em] text-blue-700">Step {index + 1}</p>
-                  <h3 className="mt-3 text-xl font-semibold text-slate-950">{step.title}</h3>
+                  <h3 className="mt-3 text-lg font-semibold text-slate-950">{step.title}</h3>
                   <p className="mt-3 text-sm leading-7 text-slate-600">{step.description}</p>
                 </article>
               );

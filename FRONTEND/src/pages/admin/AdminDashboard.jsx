@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import Layout from "../../components/Layout.jsx";
-import { 
-  Users, Briefcase, FileText, UserCircle, 
-  UserPlus, X, TrendingUp, Activity, ChevronRight, CheckCircle 
+import {
+  Users, Briefcase, FileText, UserCircle,
+  UserPlus, X, TrendingUp, Activity, ChevronRight, CheckCircle
 } from "lucide-react";
 import { adminApi } from "../../services/api.js";
 
@@ -10,7 +10,7 @@ function AdminDashboard() {
   const [stats, setStats] = useState({ totalUsers: 0, totalRecruiters: 0, totalJobs: 0, totalApplications: 0 });
   const [loading, setLoading] = useState(true);
 
-  // Modal States
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", company: "" });
   const [inviteMessage, setInviteMessage] = useState("");
@@ -50,14 +50,14 @@ function AdminDashboard() {
 
   return (
     <Layout title="" subtitle="">
-      
-      {/* === HEADER SECTION === */}
+
+
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Platform Overview</h1>
+          <h1 className="text-xl font-bold text-slate-900">Platform Overview</h1>
           <p className="text-sm text-slate-500 mt-1">Monitor system metrics and manage users</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-all focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
@@ -72,15 +72,15 @@ function AdminDashboard() {
         </div>
       ) : (
         <>
-          {/* === STATS GRID === */}
+
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4 mb-8">
-            
-            {/* Card 1 */}
+
+
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Job Seekers</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalUsers}</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">{stats.totalUsers}</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                   <Users className="h-6 w-6" />
@@ -92,12 +92,12 @@ function AdminDashboard() {
               </div>
             </div>
 
-            {/* Card 2 */}
+
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Recruiters</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalRecruiters}</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">{stats.totalRecruiters}</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
                   <UserCircle className="h-6 w-6" />
@@ -109,12 +109,12 @@ function AdminDashboard() {
               </div>
             </div>
 
-            {/* Card 3 */}
+
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Active Jobs</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalJobs}</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">{stats.totalJobs}</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                   <Briefcase className="h-6 w-6" />
@@ -126,12 +126,12 @@ function AdminDashboard() {
               </div>
             </div>
 
-            {/* Card 4 */}
+
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Applications</p>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalApplications}</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">{stats.totalApplications}</p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
                   <FileText className="h-6 w-6" />
@@ -145,10 +145,10 @@ function AdminDashboard() {
 
           </div>
 
-          {/* === BOTTOM SECTION (Activity & Quick Links) === */}
+
           <div className="grid gap-6 lg:grid-cols-3">
-            
-            {/* Recent Activity Table Placeholder */}
+
+
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-base font-bold text-slate-800">Recent Platform Activity</h2>
@@ -161,7 +161,7 @@ function AdminDashboard() {
               </div>
             </div>
 
-            {/* Quick Management Links */}
+
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="mb-4 text-base font-bold text-slate-800">Quick Management</h2>
               <div className="flex flex-col gap-3">
@@ -172,7 +172,7 @@ function AdminDashboard() {
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600" />
                 </button>
-                
+
                 <button className="group flex w-full items-center justify-between rounded-lg border border-slate-100 bg-white p-3 text-left transition-all hover:border-blue-200 hover:bg-blue-50">
                   <div className="flex items-center gap-3">
                     <div className="rounded-md bg-emerald-50 p-2 text-emerald-600 group-hover:bg-emerald-100"><CheckCircle className="h-4 w-4" /></div>
@@ -181,7 +181,7 @@ function AdminDashboard() {
                   <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600" />
                 </button>
 
-                <button 
+                <button
                   onClick={() => setIsModalOpen(true)}
                   className="group flex w-full items-center justify-between rounded-lg border border-slate-100 bg-white p-3 text-left transition-all hover:border-blue-200 hover:bg-blue-50"
                 >
@@ -198,13 +198,13 @@ function AdminDashboard() {
         </>
       )}
 
-      {/* ================= INVITE MODAL ================= */}
+
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm transition-opacity">
           <div className="relative w-full max-w-md scale-100 rounded-2xl bg-white p-7 shadow-2xl transition-transform">
-            
-            <button 
-              onClick={() => setIsModalOpen(false)} 
+
+            <button
+              onClick={() => setIsModalOpen(false)}
               className="absolute right-5 top-5 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
             >
               <X className="h-5 w-5" />
@@ -227,12 +227,12 @@ function AdminDashboard() {
             )}
 
             <form onSubmit={handleInvite} className="space-y-4">
-              
+
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">Full Name</label>
-                <input 
+                <input
                   required
-                  type="text" 
+                  type="text"
                   placeholder="e.g. John Doe"
                   value={inviteForm.name}
                   onChange={(e) => setInviteForm({...inviteForm, name: e.target.value})}
@@ -242,9 +242,9 @@ function AdminDashboard() {
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">Email Address</label>
-                <input 
+                <input
                   required
-                  type="email" 
+                  type="email"
                   placeholder="john@company.com"
                   value={inviteForm.email}
                   onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
@@ -254,9 +254,9 @@ function AdminDashboard() {
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">Company Name</label>
-                <input 
+                <input
                   required
-                  type="text" 
+                  type="text"
                   placeholder="e.g. Google, TechCorp"
                   value={inviteForm.company}
                   onChange={(e) => setInviteForm({...inviteForm, company: e.target.value})}
@@ -265,8 +265,8 @@ function AdminDashboard() {
               </div>
 
               <div className="pt-2">
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isInviting}
                   className="w-full rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70 flex justify-center items-center gap-2"
                 >
@@ -278,7 +278,7 @@ function AdminDashboard() {
                   ) : "Send Invitation Email"}
                 </button>
               </div>
-              
+
             </form>
           </div>
         </div>

@@ -20,7 +20,7 @@ function Navbar() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 font-bold text-white shadow-lg shadow-blue-600/20 transition-transform group-hover:scale-105">
             <BriefcaseBusiness className="h-6 w-6" />
           </div>
-          <p className="text-2xl font-bold tracking-tight text-slate-900">JobFlow</p>
+          <p className="text-xl font-bold tracking-tight text-slate-900">JobFlow</p>
         </Link>
 
         <nav className="hidden items-center gap-2 md:flex">

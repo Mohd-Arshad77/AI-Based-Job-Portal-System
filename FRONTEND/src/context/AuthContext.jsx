@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }) => {
 
   } catch (error) {
     return {
-      success: false,   
+      success: false,
       message: error.response?.data?.message || "Invalid email or password"
     };
   } finally {
@@ -79,7 +79,7 @@ const register = async (values) => {
 
   } catch (error) {
     return {
-      success: false,   
+      success: false,
       message: error.response?.data?.message || "Registration failed"
     };
   } finally {
@@ -91,7 +91,7 @@ const register = async (values) => {
     try {
       await authApi.logout();
     } catch {
-      // ignore logout failures so local auth state can still be cleared
+
     }
 
     setToken("");
