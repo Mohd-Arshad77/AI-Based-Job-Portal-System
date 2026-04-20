@@ -1,6 +1,7 @@
 import Job from "../models/Job.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { calculateJobMatch } from "../utils/resumeParser.js";
+import { buildSetUpdate, hasSetFields, notFoundObjectId, toObjectId } from "../utils/queryHelpers.js";
 
 export const createJob = asyncHandler(async (req, res) => {
   const job = await Job.create({
@@ -15,29 +16,33 @@ export const createJob = asyncHandler(async (req, res) => {
 });
 
 export const updateJob = asyncHandler(async (req, res) => {
-  const job = await Job.findById(req.params.id);
+  const { title, company, location, salary, experienceRequired, skillsRequired, description } = req.body;
+
+  const update = buildSetUpdate({
+    title,
+    company,
+    location,
+    salary,
+    experienceRequired,
+    skillsRequired: Array.isArray(skillsRequired) ? skillsRequired : undefined,
+    description
+  });
+
+  if (!hasSetFields(update)) {
+    res.status(400);
+    throw new Error("No valid job fields provided.");
+  }
+
+  const job = await Job.findOneAndUpdate(
+    { _id: req.params.id, createdBy: req.user._id },
+    update,
+    { new: true, runValidators: true }
+  ).lean();
 
   if (!job) {
     res.status(404);
-    throw new Error("Job not found.");
+    throw new Error("Job not found or you are not allowed to edit it.");
   }
-
-  if (job.createdBy.toString() !== req.user._id.toString()) {
-    res.status(403);
-    throw new Error("You can only edit jobs you created.");
-  }
-
-  const { title, company, location, salary, experienceRequired, skillsRequired, description } = req.body;
-
-  job.title = title ?? job.title;
-  job.company = company ?? job.company;
-  job.location = location ?? job.location;
-  job.salary = salary ?? job.salary;
-  job.experienceRequired = experienceRequired ?? job.experienceRequired;
-  job.skillsRequired = Array.isArray(skillsRequired) ? skillsRequired : job.skillsRequired;
-  job.description = description ?? job.description;
-
-  await job.save();
 
   res.json({ message: "Job updated successfully", job });
 });
@@ -46,13 +51,26 @@ export const getJobs = asyncHandler(async (req, res) => {
   const filters = {};
 
   if (req.user?.role === "recruiter") {
-    filters.createdBy = req.user._id;
+    filters.createdBy = toObjectId(req.user._id) || notFoundObjectId();
   } else {
     filters.isActive = true;
     filters.isApproved = true;
   }
 
-  const jobs = await Job.find(filters).populate("createdBy", "name email").sort({ createdAt: -1 }).lean();
+  const jobs = await Job.aggregate([
+    { $match: filters },
+    { $sort: { createdAt: -1 } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "createdBy",
+        foreignField: "_id",
+        pipeline: [{ $project: { name: 1, email: 1 } }],
+        as: "createdBy"
+      }
+    },
+    { $unwind: { path: "$createdBy", preserveNullAndEmptyArrays: true } }
+  ]);
 
   const jobsWithMatch = req.user?.role === "user"
     ? jobs.map((job) => {
@@ -69,7 +87,21 @@ export const getJobs = asyncHandler(async (req, res) => {
 });
 
 export const getSingleJob = asyncHandler(async (req, res) => {
-  const job = await Job.findById(req.params.id).populate("createdBy", "name email");
+  const jobId = toObjectId(req.params.id) || notFoundObjectId();
+  const [job] = await Job.aggregate([
+    { $match: { _id: jobId } },
+    { $limit: 1 },
+    {
+      $lookup: {
+        from: "users",
+        localField: "createdBy",
+        foreignField: "_id",
+        pipeline: [{ $project: { name: 1, email: 1 } }],
+        as: "createdBy"
+      }
+    },
+    { $unwind: { path: "$createdBy", preserveNullAndEmptyArrays: true } }
+  ]);
 
   if (!job) {
     res.status(404);
@@ -80,44 +112,36 @@ export const getSingleJob = asyncHandler(async (req, res) => {
 });
 
 export const closeJob = asyncHandler(async (req, res) => {
-  const job = await Job.findById(req.params.id);
+  const job = await Job.findOneAndUpdate(
+    { _id: req.params.id, createdBy: req.user._id },
+    { $set: { isActive: false } },
+    { new: true, runValidators: true }
+  ).lean();
 
   if (!job) {
     res.status(404);
-    throw new Error("Job not found.");
+    throw new Error("Job not found or you are not allowed to close it.");
   }
-
-  if (job.createdBy.toString() !== req.user._id.toString()) {
-    res.status(403);
-    throw new Error("You can only close jobs you created.");
-  }
-
-  job.isActive = false;
-  await job.save();
 
   res.json({ message: "Job closed successfully", job });
 });
 
 export const updateJobStatus = asyncHandler(async (req, res) => {
-  const job = await Job.findById(req.params.id);
-
-  if (!job) {
-    res.status(404);
-    throw new Error("Job not found.");
-  }
-
-  if (job.createdBy.toString() !== req.user._id.toString()) {
-    res.status(403);
-    throw new Error("You can only update jobs you created.");
-  }
-
   if (typeof req.body.isActive !== "boolean") {
     res.status(400);
     throw new Error("isActive must be provided as true or false.");
   }
 
-  job.isActive = req.body.isActive;
-  await job.save();
+  const job = await Job.findOneAndUpdate(
+    { _id: req.params.id, createdBy: req.user._id },
+    { $set: { isActive: req.body.isActive } },
+    { new: true, runValidators: true }
+  ).lean();
+
+  if (!job) {
+    res.status(404);
+    throw new Error("Job not found or you are not allowed to update it.");
+  }
 
   res.json({
     message: job.isActive ? "Job activated successfully" : "Job deactivated successfully",

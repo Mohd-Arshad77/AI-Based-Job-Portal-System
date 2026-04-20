@@ -4,10 +4,11 @@ import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.route('/').get(protect, getJobs).post(protect, createJob);
-router.get("/", getJobs);
+router.route("/")
+  .get(protect, getJobs)
+  .post(protect, authorizeRoles("recruiter"), createJob);
+
 router.get("/:id", getSingleJob);
-router.post("/", protect, authorizeRoles("recruiter"), createJob);
 router.put("/:id", protect, authorizeRoles("recruiter"), updateJob);
 router.patch("/:id/close", protect, authorizeRoles("recruiter"), closeJob);
 router.patch("/:id/status", protect, authorizeRoles("recruiter"), updateJobStatus);

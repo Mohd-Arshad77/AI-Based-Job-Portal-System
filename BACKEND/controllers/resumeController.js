@@ -11,11 +11,20 @@ export const parseResume = asyncHandler(async (req, res) => {
 
   const text = await extractTextFromPDF(req.file.buffer);
   const parsedData = parseResumeText(text);
-  const user = await User.findById(req.user._id);
 
-  user.parsedData = parsedData;
-  user.skills = [...new Set([...(user.skills || []), ...(parsedData.skills || [])])];
-  await user.save();
+  const updateResult = await User.updateOne(
+    { _id: req.user._id },
+    {
+      $set: { parsedData },
+      $addToSet: { skills: { $each: parsedData.skills || [] } }
+    },
+    { runValidators: true }
+  );
+
+  if (updateResult.matchedCount === 0) {
+    res.status(404);
+    throw new Error("User not found.");
+  }
 
   res.json({ message: "Resume parsed successfully", parsedData, resumeText: text });
 });

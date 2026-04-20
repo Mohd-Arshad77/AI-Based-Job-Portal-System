@@ -4,6 +4,7 @@ import Run from "../models/Run.js";
 import Job from "../models/Job.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { calculateJobMatch } from "../utils/resumeParser.js";
+import { compactUndefined } from "../utils/queryHelpers.js";
 
 const sanitizeUser = (user) => ({
   _id: user._id,
@@ -19,26 +20,35 @@ const sanitizeUser = (user) => ({
 });
 
 export const getProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("-password");
+  const user = await User.findById(req.user._id).select("-password").lean();
   res.json(user);
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("-password");
+  const { name, skills, experience, education } = req.body;
+
+  const profileFields = compactUndefined({
+    name,
+    skills: Array.isArray(skills) ? skills : undefined,
+    experience,
+    education
+  });
+
+  if (!Object.keys(profileFields).length) {
+    res.status(400);
+    throw new Error("No valid profile fields provided.");
+  }
+
+  const user = await User.findOneAndUpdate(
+    { _id: req.user._id },
+    { $set: profileFields },
+    { new: true, runValidators: true }
+  ).select("-password").lean();
 
   if (!user) {
     res.status(404);
     throw new Error("User not found.");
   }
-
-  const { name, skills, experience, education } = req.body;
-
-  user.name = name ?? user.name;
-  user.skills = Array.isArray(skills) ? skills : user.skills;
-  user.experience = experience ?? user.experience;
-  user.education = education ?? user.education;
-
-  await user.save();
 
   res.json({ message: "Profile updated successfully", user: sanitizeUser(user) });
 });
@@ -49,17 +59,33 @@ export const uploadResume = asyncHandler(async (req, res) => {
     throw new Error("Resume file is required.");
   }
 
-  const user = await User.findById(req.user._id);
   const extension = path.extname(req.file.originalname || ".pdf") || ".pdf";
-  user.resumeUrl = `/uploads/${Date.now()}-${user._id}${extension}`;
-  await user.save();
+  const resumeUrl = `/uploads/${Date.now()}-${req.user._id}${extension}`;
+
+  const user = await User.findOneAndUpdate(
+    { _id: req.user._id },
+    { $set: { resumeUrl } },
+    { new: true, runValidators: true }
+  ).select("resumeUrl").lean();
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found.");
+  }
 
   res.json({ message: "Resume uploaded successfully", resumeUrl: user.resumeUrl });
 });
 
 export const getRecommendedJobs = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
-  const jobs = await Job.find({ isActive: true, isApproved: true }).lean();
+  const [user, jobs] = await Promise.all([
+    User.findById(req.user._id).lean(),
+    Job.find({ isActive: true, isApproved: true }).lean()
+  ]);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found.");
+  }
 
   const recommendations = jobs
     .map((job) => {

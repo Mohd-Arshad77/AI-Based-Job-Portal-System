@@ -13,7 +13,7 @@ const seedAdmin = async () => {
     const adminPassword = process.env.ADMIN_PASSWORD
     const adminName = process.env.ADMIN_NAME 
 
-    await User.findOneAndDelete({ email: adminEmail });
+    await User.deleteOne({ email: adminEmail });
 
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
 

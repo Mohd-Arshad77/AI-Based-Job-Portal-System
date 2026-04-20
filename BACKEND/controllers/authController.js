@@ -4,6 +4,7 @@ import { generateAccessToken, generateRefreshToken } from "../utils/generateToke
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
+import { isDuplicateKeyError, normalizeEmail } from "../utils/queryHelpers.js";
 
 const sanitizeUser = (user) => ({
   _id: user._id,
@@ -25,42 +26,46 @@ const getCookieOptions = () => ({
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, skills, experience, education } = req.body;
-  const normalizedEmail = email?.trim().toLowerCase();
-
-  const userExists = await User.findOne({ email: normalizedEmail });
-
-  if (userExists && !userExists.isVerified) {
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    userExists.verificationCode = newOtp;
-    await userExists.save();
-
-    await sendEmail({
-      email: userExists.email,
-      subject: "Verify Your Account - OTP",
-      html: `<h2>Your OTP: ${newOtp}</h2>`
-    });
-
-    return res.json({ success: true, requiresOTP: true, email: userExists.email });
-  }
-
-  if (userExists && userExists.isVerified) {
-    res.status(400);
-    throw new Error("Account already exists");
-  }
+  const normalizedEmail = normalizeEmail(email);
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  const user = await User.create({
-    name,
-    email: normalizedEmail,
-    password,
-    role: "user",
-    isVerified: false,
-    verificationCode: otp,
-    skills: skills || [],
-    experience: experience || "",
-    education: education || ""
-  });
+  const unverifiedUser = await User.findOneAndUpdate(
+    { email: normalizedEmail, isVerified: false },
+    { $set: { verificationCode: otp } },
+    { new: true, runValidators: true }
+  ).lean();
+
+  if (unverifiedUser) {
+    await sendEmail({
+      email: unverifiedUser.email,
+      subject: "Verify Your Account - OTP",
+      html: `<h2>Your OTP: ${otp}</h2>`
+    });
+
+    return res.json({ success: true, requiresOTP: true, email: unverifiedUser.email });
+  }
+
+  let user;
+  try {
+    user = await User.create({
+      name,
+      email: normalizedEmail,
+      password,
+      role: "user",
+      isVerified: false,
+      verificationCode: otp,
+      skills: skills || [],
+      experience: experience || "",
+      education: education || ""
+    });
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      res.status(400);
+      throw new Error("Account already exists");
+    }
+    throw error;
+  }
 
   await sendEmail({
     email: user.email,
@@ -73,23 +78,26 @@ export const register = asyncHandler(async (req, res) => {
 
 export const verifyUserOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
-  const normalizedEmail = email?.trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
 
-  const user = await User.findOne({ email: normalizedEmail }).select("+password");
+  const user = await User.findOneAndUpdate(
+    { email: normalizedEmail, verificationCode: otp },
+    {
+      $set: { isVerified: true },
+      $unset: { verificationCode: "" }
+    },
+    { new: true, runValidators: true }
+  ).lean();
 
-  if (!user || user.verificationCode !== otp) {
+  if (!user) {
     res.status(400);
     throw new Error("Invalid OTP");
   }
 
-  user.isVerified = true;
-  user.verificationCode = undefined;
-
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  user.refreshToken = refreshToken;
-  await user.save();
+  await User.updateOne({ _id: user._id }, { $set: { refreshToken } });
 
   res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
   res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });
@@ -99,11 +107,11 @@ export const verifyUserOTP = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  const normalizedEmail = email?.trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
 
-  const user = await User.findOne({ email: normalizedEmail }).select("+password +refreshToken");
+  const user = await User.findOne({ email: normalizedEmail }).select("+password").lean();
 
-  const isMatch = user && (await user.matchPassword(password));
+  const isMatch = user && (await User.comparePassword(password, user.password));
 
   if (!isMatch) {
     return res.status(401).json({ message: "Invalid email or password" });
@@ -120,8 +128,7 @@ export const login = asyncHandler(async (req, res) => {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  user.refreshToken = refreshToken;
-  await user.save();
+  await User.updateOne({ _id: user._id }, { $set: { refreshToken } });
 
   res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
   res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });
@@ -133,7 +140,7 @@ export const logout = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
 
   if (refreshToken) {
-    await User.findOneAndUpdate({ refreshToken }, { $set: { refreshToken: null } });
+    await User.updateOne({ refreshToken }, { $set: { refreshToken: null } });
   }
 
   res.clearCookie("accessToken", getCookieOptions());
@@ -144,20 +151,27 @@ export const logout = asyncHandler(async (req, res) => {
 
 export const verifyRecruiter = asyncHandler(async (req, res) => {
   const { email, verificationCode, newPassword } = req.body;
-  const normalizedEmail = email?.trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
 
-  const user = await User.findOne({ email: normalizedEmail, role: "recruiter" }).select("+password");
+  if (!newPassword || newPassword.length < 6) {
+    res.status(400);
+    throw new Error("Password must be at least 6 characters");
+  }
 
-  if (!user || user.verificationCode !== verificationCode) {
+  const hashedPassword = await User.hashPassword(newPassword);
+  const user = await User.findOneAndUpdate(
+    { email: normalizedEmail, role: "recruiter", verificationCode },
+    {
+      $set: { password: hashedPassword, isVerified: true },
+      $unset: { verificationCode: "" }
+    },
+    { new: true, runValidators: true }
+  ).lean();
+
+  if (!user) {
     res.status(400);
     throw new Error("Invalid verification code");
   }
-
-  user.password = newPassword;
-  user.isVerified = true;
-  user.verificationCode = undefined;
-
-  await user.save();
 
   res.json({ success: true });
 });
@@ -173,32 +187,29 @@ export const googleAuth = asyncHandler(async (req, res) => {
   });
 
   const { email, name } = ticket.getPayload();
-  const normalizedEmail = email?.trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
+  const randomPassword = crypto.randomBytes(16).toString("hex");
+  const hashedPassword = await User.hashPassword(randomPassword);
 
-  let user = await User.findOne({ email: normalizedEmail });
-
-  if (!user) {
-    const randomPassword = crypto.randomBytes(16).toString("hex");
-
-    user = await User.create({
-      name,
-      email: normalizedEmail,
-      password: randomPassword,
-      role: "user",
-      isVerified: true
-    });
-  } else if (!user.isVerified) {
-  
-    user.isVerified = true;
-    user.verificationCode = undefined;
-    await user.save();
-  }
+  const user = await User.findOneAndUpdate(
+    { email: normalizedEmail },
+    {
+      $set: { isVerified: true },
+      $unset: { verificationCode: "" },
+      $setOnInsert: {
+        name,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: "user"
+      }
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+  ).lean();
 
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  user.refreshToken = refreshToken;
-  await user.save();
+  await User.updateOne({ _id: user._id }, { $set: { refreshToken } });
 
   res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
   res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });

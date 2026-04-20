@@ -24,4 +24,9 @@ const interviewSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+interviewSchema.index({ recruiter: 1, scheduledAt: 1, createdAt: -1 });
+interviewSchema.index({ user: 1, scheduledAt: 1, createdAt: -1 });
+interviewSchema.index({ job: 1, scheduledAt: 1 });
+interviewSchema.index({ status: 1, scheduledAt: 1 });
+
 export default mongoose.model("Interview", interviewSchema);

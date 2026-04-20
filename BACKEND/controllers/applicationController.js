@@ -3,6 +3,7 @@ import Job from "../models/Job.js";
 import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import sendEmail from "../utils/sendEmail.js";
+import { compactUndefined, isDuplicateKeyError, notFoundObjectId, toObjectId } from "../utils/queryHelpers.js";
 
 const getEmailTemplate = (status, userName, jobTitle) => {
   const brandColor = "#7D66FD"; 
@@ -86,31 +87,75 @@ const getEmailTemplate = (status, userName, jobTitle) => {
 };
 
 export const applyJob = asyncHandler(async (req, res) => {
-  const job = await Job.findById(req.params.jobId);
+  const job = await Job.findOne({
+    _id: req.params.jobId,
+    isActive: true,
+    isApproved: true
+  }).select("title createdBy").lean();
 
-  if (!job || !job.isActive || !job.isApproved) {
+  if (!job) {
     res.status(400);
     throw new Error("This job is not accepting applications at the moment.");
   }
 
-  const existingApplication = await Application.findOne({ user: req.user._id, job: job._id });
-  if (existingApplication) {
+  const now = new Date();
+  let applicationResult;
+  try {
+    applicationResult = await Application.findOneAndUpdate(
+      { user: req.user._id, job: job._id },
+      {
+        $setOnInsert: {
+          user: req.user._id,
+          job: job._id,
+          recruiter: job.createdBy,
+          status: "Pending",
+          appliedAt: now,
+          createdAt: now,
+          updatedAt: now
+        }
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+        includeResultMetadata: true,
+        timestamps: false
+      }
+    );
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      res.status(400);
+      throw new Error("You have already applied for this job.");
+    }
+    throw error;
+  }
+
+  if (applicationResult.lastErrorObject?.updatedExisting) {
     res.status(400);
     throw new Error("You have already applied for this job.");
   }
 
-  const user = await User.findById(req.user._id);
-  
-  if (req.body.name) user.name = req.body.name;
-  if (req.body.experience) user.experience = req.body.experience;
-  
-  if (req.file) {
-    user.resumeUrl = req.file.path;
-  }
-  
-  await user.save(); 
+  const profileFields = compactUndefined({
+    name: req.body.name,
+    experience: req.body.experience,
+    resumeUrl: req.file?.path
+  });
 
-  const application = await Application.create({ user: req.user._id, job: job._id });
+  const user = Object.keys(profileFields).length
+    ? await User.findOneAndUpdate(
+        { _id: req.user._id },
+        { $set: profileFields },
+        { new: true, runValidators: true }
+      ).select("name email").lean()
+    : req.user;
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found.");
+  }
+
+  const application = applicationResult.value.toObject?.() || applicationResult.value;
+  delete application.recruiter;
 
   if (user.email) {
     const emailOptions = getEmailTemplate("Applied", user.name, job.title);
@@ -121,42 +166,119 @@ export const applyJob = asyncHandler(async (req, res) => {
 });
 
 export const getApplications = asyncHandler(async (req, res) => {
-  let query = {};
+  const pipeline = [];
+  const userId = toObjectId(req.user._id) || notFoundObjectId();
 
   if (req.user.role === "user") {
-    query = { user: req.user._id };
+    pipeline.push({ $match: { user: userId } });
   }
 
   if (req.user.role === "recruiter") {
-    const jobs = await Job.find({ createdBy: req.user._id }).select("_id");
-    query = { job: { $in: jobs.map((job) => job._id) } };
+    pipeline.push({
+      $match: {
+        $or: [
+          { recruiter: userId },
+          { recruiter: { $exists: false } }
+        ]
+      }
+    });
   }
 
-  const applications = await Application.find(query)
-    .populate("user", "name email skills experience education")
-    .populate("job", "title company location skillsRequired createdBy")
-    .sort({ appliedAt: -1 });
+  pipeline.push({ $sort: { appliedAt: -1 } });
+
+  pipeline.push(
+    {
+      $lookup: {
+        from: "jobs",
+        let: { jobId: "$job" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$_id", "$$jobId"] },
+                  ...(req.user.role === "recruiter" ? [{ $eq: ["$createdBy", userId] }] : [])
+                ]
+              }
+            }
+          },
+          { $project: { title: 1, company: 1, location: 1, skillsRequired: 1, createdBy: 1 } }
+        ],
+        as: "job"
+      }
+    },
+    { $unwind: { path: "$job", preserveNullAndEmptyArrays: req.user.role !== "recruiter" } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        pipeline: [{ $project: { name: 1, email: 1, skills: 1, experience: 1, education: 1 } }],
+        as: "user"
+      }
+    },
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+    { $project: { recruiter: 0 } }
+  );
+
+  const applications = await Application.aggregate(pipeline);
 
   res.json(applications);
 });
 
 export const updateStatus = asyncHandler(async (req, res) => {
-  const application = await Application.findById(req.params.id)
-    .populate("job")
-    .populate("user", "name email");
+  const applicationId = toObjectId(req.params.id) || notFoundObjectId();
+  const recruiterId = toObjectId(req.user._id) || notFoundObjectId();
+  const [application] = await Application.aggregate([
+    { $match: { _id: applicationId } },
+    { $limit: 1 },
+    {
+      $lookup: {
+        from: "jobs",
+        let: { jobId: "$job" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$_id", "$$jobId"] },
+                  { $eq: ["$createdBy", recruiterId] }
+                ]
+              }
+            }
+          }
+        ],
+        as: "job"
+      }
+    },
+    { $unwind: "$job" },
+    {
+      $lookup: {
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        pipeline: [{ $project: { name: 1, email: 1 } }],
+        as: "user"
+      }
+    },
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+    { $project: { recruiter: 0 } }
+  ]);
 
   if (!application) {
     res.status(404);
-    throw new Error("Application not found.");
+    throw new Error("Application not found or you are not allowed to update it.");
   }
 
-  if (application.job.createdBy.toString() !== req.user._id.toString()) {
-    res.status(403);
-    throw new Error("You can only manage applications for your jobs.");
-  }
+  const now = new Date();
+  await Application.updateOne(
+    { _id: application._id, job: application.job._id },
+    { $set: { status: req.body.status, recruiter: recruiterId, updatedAt: now } },
+    { runValidators: true, timestamps: false }
+  );
 
   application.status = req.body.status;
-  await application.save();
+  application.updatedAt = now;
 
   if (application.user && application.user.email) {
     const emailOptions = getEmailTemplate(application.status, application.user.name, application.job.title);
@@ -164,4 +286,4 @@ export const updateStatus = asyncHandler(async (req, res) => {
   }
 
   res.json({ message: "Application status updated successfully", application });
-});
+  });

@@ -16,4 +16,6 @@ const runSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+runSchema.index({ userId: 1, createdAt: -1 });
+
 export default mongoose.model("Run", runSchema);

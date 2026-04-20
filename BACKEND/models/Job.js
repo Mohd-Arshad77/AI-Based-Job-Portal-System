@@ -16,4 +16,8 @@ const jobSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+jobSchema.index({ createdBy: 1, createdAt: -1 });
+jobSchema.index({ isActive: 1, isApproved: 1, createdAt: -1 });
+jobSchema.index({ skillsRequired: 1 });
+
 export default mongoose.model("Job", jobSchema);
