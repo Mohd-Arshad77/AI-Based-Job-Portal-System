@@ -1,6 +1,7 @@
 import Application from "../models/Application.js";
 import Interview from "../models/Interview.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import sendEmail from "../utils/sendEmail.js";
 
 const interviewPopulate = [
   {
@@ -32,47 +33,17 @@ const assertInterviewAccess = (interview, currentUser) => {
 
   return false;
 };
-
 export const createInterview = asyncHandler(async (req, res) => {
   const { applicationId, scheduledAt, mode, meetingLink, location, notes, status } = req.body;
 
-  if (!applicationId) {
-    res.status(400);
-    throw new Error("applicationId is required.");
-  }
+  const application = await Application.findById(applicationId)
+    .populate("job")
+    .populate("user", "name email");
 
-  if (!scheduledAt) {
-    res.status(400);
-    throw new Error("scheduledAt is required.");
-  }
-
-  const application = await Application.findById(applicationId).populate("job");
-
-  if (!application) {
-    res.status(404);
-    throw new Error("Application not found.");
-  }
-
-  if (!application.job) {
-    res.status(400);
-    throw new Error("Job not found for this application.");
-  }
-
-  if (application.job.createdBy.toString() !== req.user._id.toString()) {
-    res.status(403);
-    throw new Error("You can only schedule interviews for your own job applications.");
-  }
-
-  const existingInterview = await Interview.findOne({ application: application._id });
-
-  if (existingInterview) {
-    res.status(400);
-    throw new Error("An interview already exists for this application.");
-  }
 
   const interview = await Interview.create({
     application: application._id,
-    user: application.user,
+    user: application.user._id, 
     job: application.job._id,
     recruiter: req.user._id,
     scheduledAt,
@@ -89,6 +60,36 @@ export const createInterview = asyncHandler(async (req, res) => {
   }
 
   await interview.populate(interviewPopulate);
+
+  if (application.user && application.user.email) {
+    const interviewDate = new Date(scheduledAt).toLocaleString();
+    const modeDetails = mode === "Online" 
+      ? `<p><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #7D66FD;">${meetingLink}</a></p>` 
+      : `<p><strong>Location:</strong> ${location}</p>`;
+
+    const emailOptions = {
+      email: application.user.email,
+      subject: `Interview Scheduled: ${application.job.title} at JobFlow`,
+      html: `
+        <div style="font-family: sans-serif; line-height: 1.6;">
+          <h3>Hi ${application.user.name},</h3>
+          <p>Congratulations! You have been invited for an interview for the <strong>${application.job.title}</strong> position.</p>
+          <div style="background-color: #f3f0ff; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin-top: 0; color: #7D66FD;">Interview Details:</h4>
+            <p><strong>Date & Time:</strong> ${interviewDate}</p>
+            <p><strong>Mode:</strong> ${mode}</p>
+            ${modeDetails}
+          </div>
+          <p>Please be prepared and log in/arrive 5 minutes early.</p>
+          <br/>
+          <p>Best Regards,</p>
+          <p><strong>JobFlow Team</strong></p>
+        </div>
+      `,
+    };
+
+    sendEmail(emailOptions).catch((err) => console.error("Interview Email Error:", err.message));
+  }
 
   res.status(201).json({
     message: "Interview scheduled successfully",
