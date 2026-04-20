@@ -14,18 +14,14 @@ function ProtectedRoute({ roles = [] }) {
     );
   }
 
-  // ❌ Not logged in
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 🔒 Role check
   if (roles.length > 0 && !roles.includes(user.role)) {
 
-    // ✅ Admin override
     if (user.role === "admin") return <Outlet />;
 
-    // 🔁 Role-based redirect
     if (user.role === "recruiter") {
       return <Navigate to="/recruiter/manage" replace />;
     }

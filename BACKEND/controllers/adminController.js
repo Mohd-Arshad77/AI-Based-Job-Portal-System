@@ -41,7 +41,6 @@ export const inviteRecruiter = asyncHandler(async (req, res) => {
     verificationCode,
   });
 
-  // 👇 ഫ്രണ്ട്-എൻഡിലേക്കുള്ള ലിങ്ക് ഇവിടെ സെറ്റ് ചെയ്യുന്നു
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const verificationLink = `${frontendUrl}/verify-recruiter?email=${email}`;
 

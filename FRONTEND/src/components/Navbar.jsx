@@ -18,7 +18,6 @@ function Navbar() {
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         
         <div className="flex items-center gap-12">
-          {/* Logo */}
           <Link to="/" className="group flex items-center gap-3 transition-opacity hover:opacity-90">
             <div className="flex h-8 w-8 items-center justify-center text-indigo-900">
               <BriefcaseBusiness className="h-7 w-7" />
@@ -26,7 +25,6 @@ function Navbar() {
             <p className="text-xl font-bold tracking-tight text-indigo-950">JobFlow</p>
           </Link>
 
-          {/* Center Navigation Links */}
           <nav className="hidden items-center gap-8 md:flex">
             {user?.role !== "recruiter" && (
               <NavLink 
@@ -57,7 +55,6 @@ function Navbar() {
           </nav>
         </div>
 
-        {/* Right Side Actions */}
         <div className="flex items-center gap-6">
           {user ? (
             <div className="flex items-center gap-5">

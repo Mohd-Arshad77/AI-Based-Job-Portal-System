@@ -42,17 +42,14 @@ function Dashboard() {
       title="Dashboard" 
       subtitle="A simple overview of your profile, recommended jobs, and next steps."
     >
-      {/* JOB-RELATED HERO BANNER REPLACING STATS CARDS */}
       <div className="relative mb-12 h-64 w-full overflow-hidden rounded-[24px] shadow-sm lg:h-72">
         <img
           src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80"
           alt="Team collaborating in a modern office"
           className="h-full w-full object-cover"
         />
-        {/* Gradient Overlay for Text Readability */}
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/90 via-indigo-900/60 to-transparent"></div>
         
-        {/* Banner Content */}
         <div className="absolute inset-0 flex flex-col justify-center p-8 sm:p-10">
           <span className="mb-2 inline-flex w-fit items-center rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
             Workspace
@@ -66,7 +63,6 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* 3-PART QUICK ACTIONS */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-indigo-950">Next Steps</h2>
         <p className="mt-2 text-slate-500">Use these shortcuts to continue your job search journey.</p>
@@ -95,10 +91,8 @@ function Dashboard() {
         })}
       </div>
 
-      {/* BOTTOM SECTION: PROFILE & RECOMMENDED JOBS */}
       <div className="mt-10 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
         
-        {/* Profile Summary */}
         <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
           <h2 className="text-xl font-bold text-indigo-950">My Profile Summary</h2>
           
@@ -133,7 +127,6 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Recommended Jobs */}
         <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm flex flex-col">
           <div className="mb-6 flex items-center justify-between">
             <div>

@@ -41,7 +41,6 @@ function ResumeUpload() {
     >
       <div className="mt-8 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
         
-        {/* UPLOAD SECTION */}
         <div className="flex flex-col gap-6">
           <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
             <div className="mb-6">
@@ -50,7 +49,6 @@ function ResumeUpload() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Custom File Input UI */}
               {!file ? (
                 <label className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-10 transition-all hover:border-indigo-300 hover:bg-indigo-50/50">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
@@ -131,7 +129,6 @@ function ResumeUpload() {
           </div>
         </div>
 
-        {/* PARSED RESULTS SECTION */}
         <div className="flex flex-col rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
           <div className="mb-6 flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 className="text-xl font-bold text-indigo-950 flex items-center gap-2">
@@ -147,7 +144,6 @@ function ResumeUpload() {
 
           {parsed ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-              {/* Summary */}
               <div>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Professional Summary</p>
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-5">
@@ -155,7 +151,6 @@ function ResumeUpload() {
                 </div>
               </div>
 
-              {/* Skills */}
               <div>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Extracted Skills</p>
                 <div className="flex flex-wrap gap-2">
@@ -174,7 +169,6 @@ function ResumeUpload() {
                 </div>
               </div>
 
-              {/* Projects */}
               <div>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Notable Projects & Experience</p>
                 {(parsed.projects || []).length > 0 ? (

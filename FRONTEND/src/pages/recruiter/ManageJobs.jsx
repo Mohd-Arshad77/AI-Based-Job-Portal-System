@@ -49,10 +49,8 @@ function ManageJobs() {
   const [interviews, setInterviews] = useState([]);
   const [message, setMessage] = useState("");
   
-  // പ്രധാന ടാബുകൾ (Applicants ഒഴിവാക്കി)
   const [activeTab, setActiveTab] = useState(() => (window.location.pathname.includes("create") ? "create" : "jobs"));
   
-  // Job Preview-ന് ഉള്ളിലെ സബ്-ടാബുകൾ ("info" അല്ലെങ്കിൽ "applicants")
   const [detailsTab, setDetailsTab] = useState("info");
 
   const [editingJobId, setEditingJobId] = useState("");
@@ -65,7 +63,6 @@ function ManageJobs() {
   const [interviewFeedback, setInterviewFeedback] = useState({ type: "", text: "" });
   const [isSchedulingInterview, setIsSchedulingInterview] = useState(false);
   
-  // കാൻഡിഡേറ്റ് സെർച്ച് ഫിൽറ്ററുകൾ
   const [searchFilters, setSearchFilters] = useState({ keyword: "", status: "", skills: "", experience: "" });
 
   const detailsRef = useRef(null);
@@ -156,7 +153,7 @@ function ManageJobs() {
 
   const handleViewJob = (job) => {
     setSelectedJobId(job._id);
-    setDetailsTab("info"); // പുതിയ ജോലി നോക്കുമ്പോൾ എപ്പോഴും info ടാബിൽ വരാൻ
+    setDetailsTab("info");
     setOpenMenuId("");
     scrollToSection(detailsRef);
   };
@@ -217,7 +214,6 @@ function ManageJobs() {
       await applicationsApi.updateStatus(applicationId, status);
       setApplications((current) => current.map((item) => (item._id === applicationId ? { ...item, status } : item)));
       setMessage(`Candidate status updated to ${status}.`);
-      // ഓർക്കുക: ഇവിടെവെച്ചാണ് ബാക്ക്-എൻഡിൽ Email ട്രിഗർ വർക്ക് ആകേണ്ടത്
     } catch (error) {
       setMessage(error.response?.data?.message || "Could not update application status.");
     }
@@ -246,7 +242,6 @@ function ManageJobs() {
   };
 
   const handleScheduleInterview = async () => {
-    // ... നിലവിലുള്ള ഇന്റർവ്യൂ ഫംഗ്ഷൻ മാറ്റമില്ലാതെ തുടരുന്നു
     if (!interviewForm.applicationId) return setInterviewFeedback({ type: "error", text: "Please select an applicant." });
     if (!interviewForm.scheduledAt) return setInterviewFeedback({ type: "error", text: "Please choose an interview date and time." });
 
@@ -293,7 +288,6 @@ function ManageJobs() {
     }
   };
 
-  // കാൻഡിഡേറ്റ്സ് ഫിൽറ്റർ ചെയ്യാനുള്ള ലോജിക്
   const getFilteredApplicants = (jobId) => {
     let apps = applicantsByJob[jobId] || [];
     
@@ -318,7 +312,6 @@ function ManageJobs() {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto py-8">
-        {/* Header Stats */}
         <div className="mb-8">
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col sm:flex-row overflow-hidden">
             <div className="flex-1"><StatCard icon={FileText} value={jobs.length} label="Total Jobs" /></div>
@@ -328,7 +321,6 @@ function ManageJobs() {
           </div>
         </div>
 
-        {/* മെയിൻ ടാബുകൾ (Applicants ഒഴിവാക്കി) */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex p-1 space-x-1 bg-gray-100/80 rounded-lg max-w-fit border border-gray-200">
             <button type="button" onClick={() => setActiveTab("jobs")} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === "jobs" ? "bg-white text-indigo-700 shadow-sm ring-1 ring-black ring-opacity-5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"}`}>
@@ -343,7 +335,6 @@ function ManageJobs() {
           </div>
         </div>
 
-        {/* Tab Content */}
         {activeTab === "jobs" ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -353,7 +344,6 @@ function ManageJobs() {
               </button>
             </div>
 
-            {/* ജോലികളുടെ ലിസ്റ്റ് */}
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               {jobs.length ? (
                 <ul className="divide-y divide-gray-200">
@@ -407,7 +397,6 @@ function ManageJobs() {
               )}
             </div>
 
-            {/* 👇 പുതിയ JOB PREVIEW & APPLICANTS സെക്ഷൻ */}
             <div ref={detailsRef} className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 lg:p-8 mt-6">
               {selectedJob ? (
                 <div>
@@ -423,7 +412,6 @@ function ManageJobs() {
                     </div>
                   </div>
 
-                  {/* സബ്-ടാബുകൾ */}
                   <div className="flex border-b border-gray-200 mb-6 space-x-6">
                     <button onClick={() => setDetailsTab("info")} className={`pb-3 text-sm font-medium transition-colors border-b-2 ${detailsTab === "info" ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
                       Job Info
@@ -434,7 +422,6 @@ function ManageJobs() {
                   </div>
 
                   {detailsTab === "info" ? (
-                    // Job Info Tab
                     <div className="space-y-6 animate-in fade-in">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
                         <div>
@@ -472,10 +459,8 @@ function ManageJobs() {
                       </div>
                     </div>
                   ) : (
-                    // Applicants Tab (with Search/Filter Module)
                     <div className="space-y-6 animate-in fade-in">
                       
-                      {/* കാൻഡിഡേറ്റ് സെർച്ച് & ഫിൽറ്റർ മോഡ്യൂൾ */}
                       <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                         <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-700">
                           <Filter className="h-4 w-4" /> Filter Candidates
@@ -494,7 +479,6 @@ function ManageJobs() {
                         </div>
                       </div>
 
-                      {/* അപേക്ഷകരുടെ ലിസ്റ്റ് (Shortlisting ഡ്രോപ്പ്ഡൗൺ സഹിതം) */}
                       <div className="border border-gray-200 rounded-xl overflow-hidden">
                         {getFilteredApplicants(selectedJob._id).length ? (
                           <ul className="divide-y divide-gray-200 bg-white">
@@ -515,7 +499,6 @@ function ManageJobs() {
                                   </div>
                                   
                                   <div className="flex items-center gap-3">
-                                    {/* ഷോർട്ട്‌ലിസ്റ്റ് ചെയ്യാനുള്ള ബട്ടൺ / സ്റ്റാറ്റസ് മാറ്റാൻ */}
                                     <div className="relative group">
                                       <button type="button" className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm">
                                         Update Status
@@ -552,7 +535,6 @@ function ManageJobs() {
               )}
             </div>
 
-            {/* Edit Section */}
             <div ref={editRef} className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 lg:p-8 mt-6">
               <div className="border-b border-gray-200 pb-4 mb-6">
                 <h2 className="text-lg font-bold text-gray-900">Edit Posting</h2>
@@ -560,7 +542,6 @@ function ManageJobs() {
               
               {editingJobId ? (
                 <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* എഡിറ്റ് ഫോം പഴയതുപോലെ നിലനിർത്തിയിട്ടുണ്ട് */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium text-gray-700">Job Title</label>
                     <input className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-600 outline-none" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -600,7 +581,6 @@ function ManageJobs() {
             </div>
           </div>
         ) : activeTab === "interviews" ? (
-          // ഇന്റർവ്യൂ സെക്ഷൻ പഴയതുപോലെ നിലനിർത്തിയിരിക്കുന്നു
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Interviews Schedule</h2>
@@ -716,7 +696,6 @@ function ManageJobs() {
             </div>
           </div>
         ) : activeTab === "create" ? (
-          // Create Job ഫോം പഴയതുപോലെ
           <div className="max-w-4xl mx-auto">
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 lg:p-10">
               <div className="border-b border-gray-200 pb-5 mb-8">
