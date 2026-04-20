@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { authApi } from "../services/api.js";
 
 const AuthContext = createContext(null);
@@ -8,27 +8,22 @@ const storageKeys = {
   user: "portal_user"
 };
 
-const buildDemoUser = (values = {}) => {
-  const role = values.email?.includes("recruiter") ? "recruiter" : "user";
-  const fallbackName = values.name || values.email?.split("@")[0]?.replace(/[._-]/g, " ") || "Demo User";
+const getStoredUser = () => {
+  const storedUser = localStorage.getItem(storageKeys.user);
 
-  return {
-    _id: `demo-${role}`,
-    name: fallbackName.replace(/\b\w/g, (char) => char.toUpperCase()),
-    email: values.email || `${role}@demo.com`,
-    role,
-    education: "B.Tech in Computer Science",
-    experience: "Designed and shipped polished hiring products with AI-assisted workflows.",
-    skills: ["React", "Tailwind CSS", "Product Design", "AI Workflows", "Communication"]
-  };
+  if (!storedUser) return null;
+
+  try {
+    return JSON.parse(storedUser);
+  } catch {
+    localStorage.removeItem(storageKeys.user);
+    return null;
+  }
 };
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem(storageKeys.token) || "");
-  const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem(storageKeys.user);
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
+  const [user, setUser] = useState(getStoredUser);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -47,58 +42,100 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
- const login = async (values) => {
-  setLoading(true);
-  try {
-    const { data } = await authApi.login(values);
-
+  const applySession = (data) => {
     setToken(data.token);
     setUser(data.user);
+    return data.user;
+  };
 
-    return { success: true, user: data.user };
+const login = async (values) => {
+    setLoading(true);
+    try {
+      const { data } = await authApi.login(values);
+      const nextUser = applySession(data);
 
-  } catch (error) {
-    return {
-      success: false,
-      message: error.response?.data?.message || "Invalid email or password"
-    };
-  } finally {
-    setLoading(false);
-  }
-};
+      return { success: true, user: nextUser };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "Invalid email or password"
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-const register = async (values) => {
-  setLoading(true);
-  try {
-    const { data } = await authApi.register(values);
+  const register = async (values) => {
+    setLoading(true);
+    try {
+      const { data } = await authApi.register(values);
+      return {
+        success: true,
+        requiresOTP: data.requiresOTP,
+        email: data.email
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "Registration failed"
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setToken(data.token);
-    setUser(data.user);
+  const verifyOtp = async (values) => {
+    setLoading(true);
+    try {
+      const { data } = await authApi.verifyOtp(values);
+      const nextUser = applySession(data);
+      return { success: true, user: nextUser };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "Invalid OTP"
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return { success: true, user: data.user };
-
-  } catch (error) {
-    return {
-      success: false,
-      message: error.response?.data?.message || "Registration failed"
-    };
-  } finally {
-    setLoading(false);
-  }
-};
+  const loginWithGoogle = async (credential) => {
+    setLoading(true);
+    try {
+      const { data } = await authApi.googleAuth(credential);
+      const nextUser = applySession(data);
+      return { success: true, user: nextUser };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "Google auth failed"
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const logout = async () => {
     try {
       await authApi.logout();
-    } catch {
-
-    }
+    } catch {}
 
     setToken("");
     setUser(null);
   };
 
-  const value = useMemo(() => ({ token, user, loading, login, register, logout, isAuthenticated: Boolean(user || token) }), [token, user, loading]);
+  const value = {
+    token,
+    user,
+    loading,
+    login,
+    register,
+    verifyOtp,
+    loginWithGoogle,
+    logout,
+    isAuthenticated: Boolean(user || token)
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

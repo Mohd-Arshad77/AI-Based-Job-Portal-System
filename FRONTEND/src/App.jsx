@@ -11,9 +11,10 @@ import Applications from "./pages/user/Applications.jsx";
 import ResumeUpload from "./pages/user/ResumeUpload.jsx";
 import CreateJob from "./pages/recruiter/CreateJob.jsx";
 import ManageJobs from "./pages/recruiter/ManageJobs.jsx";
-import AdminRoute from "./components/AdminRoutes.jsx";
+import AdminRoute from "./components/AdminRoute.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import VerifyRecruiter from "./pages/auth/VerifyRecruiter.jsx";
+import NotFound from "./pages/NotFound.jsx";
 
 function App() {
   return (
@@ -38,14 +39,12 @@ function App() {
         <Route path="/recruiter/create" element={<ManageJobs />} />
       </Route>
 
-      <Route
-        path="/admin"
-        element={
-          <AdminRoute>
-            <AdminDashboard />
-          </AdminRoute>
-        }
-      />
+      <Route element={<ProtectedRoute roles={["admin"]} />}>
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Route>
+
+            <Route path="*" element={<NotFound />} />
+
     </Routes>
   );
 }

@@ -1,26 +1,40 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import Loader from "./Loader.jsx";
 
-function ProtectedRoute({ roles }) {
+function ProtectedRoute({ roles = [] }) {
   const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6">
-        <div className="w-full max-w-md">
-          <Loader label="Preparing your workspace..." />
-        </div>
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader label="Preparing your workspace..." />
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  // ❌ Not logged in
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (roles && !roles.includes(user?.role)) {
-    return <Navigate to={user?.role === "recruiter" ? "/recruiter/manage" : "/dashboard"} replace />;
+  // 🔒 Role check
+  if (roles.length > 0 && !roles.includes(user.role)) {
+
+    // ✅ Admin override
+    if (user.role === "admin") return <Outlet />;
+
+    // 🔁 Role-based redirect
+    if (user.role === "recruiter") {
+      return <Navigate to="/recruiter/manage" replace />;
+    }
+
+    if (user.role === "user") {
+      return <Navigate to="/dashboard" replace />;
+    }
+
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
