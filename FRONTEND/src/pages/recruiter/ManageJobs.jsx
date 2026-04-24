@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, CheckCircle2, Clock3, FileText, MapPin, MoreVertical, PencilLine, Plus, Power, Users, Search, Filter } from "lucide-react";
+import { Calendar, CheckCircle2, Clock3, FileText, MapPin, MoreVertical, PencilLine, Plus, Power, Users, Search, Filter, X, ExternalLink, Download, Mail, Phone, Briefcase, GraduationCap, Code } from "lucide-react";
 import Layout from "../../components/Layout.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { applicationsApi, interviewApi, jobsApi } from "../../services/api.js";
@@ -42,6 +42,7 @@ function ManageJobs() {
   const [interviewFeedback, setInterviewFeedback] = useState({ type: "", text: "" });
   const [isSchedulingInterview, setIsSchedulingInterview] = useState(false);
   const [searchFilters, setSearchFilters] = useState({ keyword: "", status: "", skills: "", experience: "" });
+  const [selectedAppForModal, setSelectedAppForModal] = useState(null);
 
   const detailsRef = useRef(null);
   const editRef = useRef(null);
@@ -234,6 +235,151 @@ const handleScheduleInterview = async () => {
     return apps;
   };
 
+  const ProfileModal = ({ application, onClose }) => {
+    if (!application) return null;
+    const { user } = application;
+    
+    // Get base URL for resume by removing /api from the end
+    const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+    const resumeFullUrl = user?.resumeUrl ? `${API_URL}${user.resumeUrl}` : null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[24px] shadow-2xl animate-in zoom-in-95 duration-200">
+          {/* Header */}
+          <div className="sticky top-0 bg-white/80 backdrop-blur-md z-10 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-800">Candidate Profile</h2>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6 md:p-8 space-y-8">
+            {/* Header Info */}
+            <div className="flex items-start gap-5">
+              <div className="w-20 h-20 rounded-[20px] bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-indigo-100">
+                {user?.name?.charAt(0) || "U"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-2xl font-bold text-slate-900 truncate">{user?.name}</h3>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {getStatusBadge(application.status)}
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                    Applied {new Date(application.appliedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact & Location */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-slate-600">
+                  <Mail className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm font-medium">{user?.email}</span>
+                </div>
+                <div className="flex items-center gap-3 text-slate-600">
+                  <Phone className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm font-medium">{user?.phone || "Not provided"}</span>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-slate-600">
+                  <MapPin className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm font-medium">{user?.location || "Location not set"}</span>
+                </div>
+                <div className="flex items-center gap-3 text-slate-600">
+                  <Briefcase className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm font-medium">{user?.experience ? `${user.experience} Years Experience` : "Experience not set"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Education */}
+            <div className="space-y-3">
+              <h4 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <GraduationCap className="w-3.5 h-3.5" /> Education
+              </h4>
+              <p className="text-slate-700 text-sm leading-relaxed">{user?.education || "No education details provided."}</p>
+            </div>
+
+            {/* Skills */}
+            <div className="space-y-3">
+              <h4 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                <Code className="w-3.5 h-3.5" /> Skills & Expertise
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {user?.skills?.length > 0 ? (
+                  user.skills.map(skill => (
+                    <span key={skill} className="px-3 py-1.5 bg-white text-indigo-600 rounded-xl text-xs font-bold border border-indigo-100 shadow-sm">
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-sm text-slate-400 italic">No skills listed.</span>
+                )}
+              </div>
+            </div>
+
+            {/* Resume Section */}
+            <div className="space-y-3 pt-2">
+              <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Resume</h4>
+              {resumeFullUrl ? (
+                <div className="flex flex-wrap gap-3">
+                  <a 
+                    href={resumeFullUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:bg-black hover:shadow-xl hover:shadow-indigo-100 active:scale-95"
+                  >
+                    <ExternalLink className="w-4 h-4" /> View Resume
+                  </a>
+                  <a 
+                    href={resumeFullUrl} 
+                    download
+                    className="flex items-center gap-2 bg-slate-100 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:bg-slate-200 active:scale-95 border border-slate-200"
+                  >
+                    <Download className="w-4 h-4" /> Download
+                  </a>
+                </div>
+              ) : (
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3 text-amber-700 text-sm">
+                  <FileText className="w-4 h-4" /> No resume available for this candidate.
+                </div>
+              )}
+            </div>
+
+            {/* Status Update Interaction */}
+            <div className="pt-6 border-t border-slate-100">
+              <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">Application Status</h4>
+              <div className="flex flex-wrap gap-2">
+                {statusOptions.map(status => (
+                  <button
+                    key={status}
+                    onClick={() => handleStatusChange(application._id, status)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                      application.status === status
+                        ? "bg-indigo-50 border-indigo-200 text-indigo-600"
+                        : "bg-white border-slate-200 text-slate-600 hover:border-indigo-200 hover:text-indigo-600"
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <button onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors">
+              Close Profile
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto py-8">
@@ -364,7 +510,7 @@ const handleScheduleInterview = async () => {
                                         {statusOptions.map((status) => <button key={status} type="button" onClick={() => handleStatusChange(application._id, status)} className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50">Mark as {status}</button>)}
                                       </div>
                                     </div>
-                                    <button type="button" className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">View Profile</button>
+                                    <button type="button" onClick={() => setSelectedAppForModal(application)} className="px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">View Profile</button>
                                   </div>
                                 </div>
                               </li>
@@ -402,6 +548,12 @@ const handleScheduleInterview = async () => {
         ) : activeTab === "create" ? (
           <CreateJob createForm={createForm} setCreateForm={setCreateForm} handleCreateJob={handleCreateJob} createMessage={createMessage} user={user} />
         ) : null}
+        {selectedAppForModal && (
+          <ProfileModal 
+            application={selectedAppForModal} 
+            onClose={() => setSelectedAppForModal(null)} 
+          />
+        )}
       </div>
     </Layout>
   );

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { UploadCloud, FileText, CheckCircle2, Sparkles, Cpu, Briefcase, X } from "lucide-react";
 import Layout from "../../components/Layout.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { profileApi } from "../../services/api.js";
 
 function ResumeUpload() {
+  const { setUser } = useAuth();
   const [file, setFile] = useState(null);
   const [parsed, setParsed] = useState(null);
   const [message, setMessage] = useState("");
@@ -22,7 +24,8 @@ function ResumeUpload() {
     formData.append("resume", file);
 
     try {
-      await profileApi.uploadResume(formData);
+      const { data: uploadData } = await profileApi.uploadResume(formData);
+      setUser(uploadData.user);
       const { data } = await profileApi.parseResume(formData);
       setParsed(data.parsedData);
       setMessage("Resume successfully analyzed and synced.");

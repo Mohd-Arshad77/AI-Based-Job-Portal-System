@@ -10,11 +10,14 @@ const sanitizeUser = (user) => {
     _id: user._id,
     name: user.name,
     email: user.email,
+    phone: user.phone,
+    location: user.location,
     role: user.role,
     skills: user.skills,
     experience: user.experience,
     education: user.education,
     resumeUrl: user.resumeUrl,
+    resumeUpdatedAt: user.resumeUpdatedAt,
     parsedData: user.parsedData
   };
 };

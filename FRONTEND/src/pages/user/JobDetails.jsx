@@ -8,19 +8,19 @@ import { applicationsApi, jobsApi } from "../../services/api.js";
 function JobDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [job, setJob] = useState(null);
   const [message, setMessage] = useState("");
-
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [modalError, setModalError] = useState("");
   const [applyForm, setApplyForm] = useState({
-    resume: null,
-    name: user?.name || "",
-    experience: user?.experience || "",
+    name: "",
+    phone: "",
+    location: "",
+    experience: "",
+    resume: null
   });
 
   useEffect(() => {
@@ -36,36 +36,58 @@ function JobDetails() {
     }
   }, [id, user]);
 
+  const getResumeFileName = (resumeUrl) => {
+    if (!resumeUrl) return "";
+    return resumeUrl.split("/").pop();
+  };
+
+  const openApplyModal = () => {
+    setMessage("");
+    setModalError("");
+    setIsSubmitted(false);
+    setApplyForm({
+      name: user?.name || "",
+      phone: user?.phone || "",
+      location: user?.location || "",
+      experience: user?.experience || "",
+      resume: null
+    });
+    setIsModalOpen(true);
+  };
+
   const submitApplication = async (e) => {
     e.preventDefault();
     setModalError("");
 
-
-    if (!applyForm.resume) {
-      setModalError("⚠️ Please upload your resume to continue.");
+    if (!user?.resumeUrl && !applyForm.resume) {
+      setModalError("Please upload your resume to continue.");
       return;
     }
 
     try {
       const formData = new FormData();
-      formData.append("jobId", id);
-      formData.append("resume", applyForm.resume);
       formData.append("name", applyForm.name);
+      formData.append("phone", applyForm.phone);
+      formData.append("location", applyForm.location);
       formData.append("experience", applyForm.experience);
-      formData.append("jobTitle", job.title);
 
-      await applicationsApi.apply(id, formData);
+      if (applyForm.resume) {
+        formData.append("resume", applyForm.resume);
+      }
 
+      const { data } = await applicationsApi.apply(id, formData);
+
+      if (data.user) {
+        setUser(data.user);
+      }
 
       setHasApplied(true);
       setIsSubmitted(true);
-
 
       setTimeout(() => {
         setIsModalOpen(false);
         navigate("/");
       }, 3500);
-
     } catch (error) {
       setModalError(error.response?.data?.message || "Could not submit application.");
     }
@@ -76,9 +98,8 @@ function JobDetails() {
   }
 
   return (
-    <Layout title={job.title} subtitle={`${job.company} • ${job.location}`}>
+    <Layout title={job.title} subtitle={`${job.company} - ${job.location}`}>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-
         <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap gap-3 text-sm text-slate-600">
             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5"><Building2 className="h-4 w-4 text-slate-500" />{job.company}</span>
@@ -115,11 +136,7 @@ function JobDetails() {
               </button>
             ) : (
               <button
-                onClick={() => {
-                  setMessage("");
-                  setModalError("");
-                  setIsModalOpen(true);
-                }}
+                onClick={openApplyModal}
                 className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-4 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
                 Apply Now
@@ -139,7 +156,6 @@ function JobDetails() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm transition-all duration-300">
           <div className="relative w-full max-w-2xl max-h-[95vh] overflow-y-auto rounded-[2rem] bg-white p-6 sm:p-8 shadow-2xl transition-all">
-
             <button onClick={() => setIsModalOpen(false)} className="absolute right-6 top-6 rounded-full bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-900">
               <X className="h-5 w-5" />
             </button>
@@ -155,92 +171,119 @@ function JobDetails() {
                     </svg>
                   </div>
                 </div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-snug">Your application has been<br/>submitted!</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-snug">Your application has been<br />submitted!</h2>
                 <p className="mt-4 text-base font-medium text-slate-500">Redirecting to home page...</p>
               </div>
             ) : (
               <>
                 <div className="mb-5">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Submit Application</h2>
-              <p className="mt-1 text-sm text-slate-500">Provide your details to apply for <span className="font-semibold text-slate-700">{job.title}</span> at {job.company}.</p>
-            </div>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">Submit Application</h2>
+                  <p className="mt-1 text-sm text-slate-500">Provide your details to apply for <span className="font-semibold text-slate-700">{job.title}</span> at {job.company}.</p>
+                </div>
 
+                {modalError && (
+                  <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-600 border border-rose-100">
+                    {modalError}
+                  </div>
+                )}
 
-            {modalError && (
-              <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-medium text-rose-600 border border-rose-100 flex items-center gap-2">
-                <span className="text-lg">⚠️</span> {modalError}
-              </div>
-            )}
-
-            <form onSubmit={submitApplication} className="space-y-5">
-
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
-                <label className="mb-2 block text-sm font-semibold text-slate-900">Resume Document</label>
-                <div className={`group flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 transition-all duration-200 ${applyForm.resume ? 'border-emerald-400 bg-emerald-50 shadow-sm' : 'border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/50'}`}>
-                  <label className="flex w-full cursor-pointer flex-col items-center text-center">
-                    <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-full transition-transform group-hover:scale-110 ${applyForm.resume ? 'bg-emerald-100' : 'bg-blue-100'}`}>
-                      <UploadCloud className={`h-6 w-6 ${applyForm.resume ? 'text-emerald-600' : 'text-blue-600'}`} />
+                <form onSubmit={submitApplication} className="space-y-5">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
+                    <label className="mb-2 block text-sm font-semibold text-slate-900">Resume Document</label>
+                    <div className={`group flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 transition-all duration-200 ${(applyForm.resume || user?.resumeUrl) ? "border-emerald-400 bg-emerald-50 shadow-sm" : "border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/50"}`}>
+                      <label className="flex w-full cursor-pointer flex-col items-center text-center">
+                        <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-full transition-transform group-hover:scale-110 ${(applyForm.resume || user?.resumeUrl) ? "bg-emerald-100" : "bg-blue-100"}`}>
+                          <UploadCloud className={`h-6 w-6 ${(applyForm.resume || user?.resumeUrl) ? "text-emerald-600" : "text-blue-600"}`} />
+                        </div>
+                        <span className="text-base font-medium text-slate-700">
+                          {applyForm.resume ? applyForm.resume.name : user?.resumeUrl ? getResumeFileName(user.resumeUrl) : "Click to upload your resume"}
+                        </span>
+                        <span className="mt-1 text-xs text-slate-500">
+                          {user?.resumeUrl && !applyForm.resume ? "Using your uploaded resume. Click to replace it." : "Supported formats: PDF, DOCX"}
+                        </span>
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          className="hidden"
+                          onChange={(e) => {
+                            setApplyForm({ ...applyForm, resume: e.target.files?.[0] || null });
+                            setModalError("");
+                          }}
+                        />
+                      </label>
                     </div>
-                    <span className="text-base font-medium text-slate-700">
-                      {applyForm.resume ? applyForm.resume.name : "Click to browse finding your resume"}
-                    </span>
-                    <span className="mt-1 text-xs text-slate-500">Supported formats: PDF, DOCX</span>
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      className="hidden"
-                      onChange={(e) => {
-                        setApplyForm({...applyForm, resume: e.target.files[0]});
-                        setModalError("");
-                      }}
-                    />
-                  </label>
-                </div>
-              </div>
+                  </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Full Name</label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Enter your full name"
+                        value={applyForm.name}
+                        onChange={(e) => setApplyForm({ ...applyForm, name: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                      />
+                    </div>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Full Name</label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="Enter your full name"
-                    value={applyForm.name}
-                    onChange={(e) => setApplyForm({...applyForm, name: e.target.value})}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  />
-                </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Email</label>
+                      <input
+                        type="email"
+                        value={user?.email || ""}
+                        disabled
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 outline-none"
+                      />
+                    </div>
 
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Phone</label>
+                      <input
+                        type="text"
+                        placeholder="Enter your phone number"
+                        value={applyForm.phone}
+                        onChange={(e) => setApplyForm({ ...applyForm, phone: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                      />
+                    </div>
 
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Years of Experience</label>
-                  <input
-                    required
-                    type="number"
-                    min="0"
-                    placeholder="e.g. 5"
-                    value={applyForm.experience}
-                    onChange={(e) => setApplyForm({...applyForm, experience: e.target.value})}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  />
-                </div>
-              </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Location</label>
+                      <input
+                        type="text"
+                        placeholder="Enter your location"
+                        value={applyForm.location}
+                        onChange={(e) => setApplyForm({ ...applyForm, location: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                      />
+                    </div>
 
-              <div className="pt-2">
-                <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30">
-                  Confirm Application <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Years of Experience</label>
+                      <input
+                        required
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 5"
+                        value={applyForm.experience}
+                        onChange={(e) => setApplyForm({ ...applyForm, experience: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                      />
+                    </div>
+                  </div>
 
-            </form>
-            </>
+                  <div className="pt-2">
+                    <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30">
+                      Confirm Application <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
           </div>
         </div>
       )}
-
     </Layout>
   );
 }

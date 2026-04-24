@@ -1,3 +1,4 @@
+import fs from "fs/promises";
 import path from "path";
 import User from "../models/User.js";
 import Run from "../models/Run.js";
@@ -9,14 +10,30 @@ const sanitizeUser = (user) => {
     _id: user._id,
     name: user.name,
     email: user.email,
+    phone: user.phone,
+    location: user.location,
     role: user.role,
     skills: user.skills,
     experience: user.experience,
     education: user.education,
     resumeUrl: user.resumeUrl,
+    resumeUpdatedAt: user.resumeUpdatedAt,
     parsedData: user.parsedData,
     createdAt: user.createdAt
   };
+};
+
+const saveResumeFile = async (file, userId) => {
+  const uploadsDir = path.join(process.cwd(), "uploads");
+  await fs.mkdir(uploadsDir, { recursive: true });
+
+  const extension = path.extname(file.originalname || "") || ".pdf";
+  const fileName = `${Date.now()}-${userId}${extension}`;
+  const filePath = path.join(uploadsDir, fileName);
+
+  await fs.writeFile(filePath, file.buffer);
+
+  return `/uploads/${fileName}`;
 };
 
 export const getProfile = asyncHandler(async (req, res) => {
@@ -40,16 +57,26 @@ export const updateProfile = asyncHandler(async (req, res) => {
     throw new Error("User not found.");
   }
 
-  if (req.body.name) user.name = req.body.name;
-  if (Array.isArray(req.body.skills)) user.skills = req.body.skills;
-  if (req.body.experience) user.experience = req.body.experience;
-  if (req.body.education) user.education = req.body.education;
+  const { name, phone, location, experience, education, skills } = req.body;
+  const updates = {};
 
-  await user.save();
+  if (name !== undefined) updates.name = name;
+  if (phone !== undefined) updates.phone = phone;
+  if (location !== undefined) updates.location = location;
+  if (experience !== undefined) updates.experience = experience;
+  if (education !== undefined) updates.education = education;
+  if (skills !== undefined) updates.skills = skills;
+
+  const updatedUser = Object.keys(updates).length > 0
+    ? await User.findByIdAndUpdate(req.user._id, updates, {
+        new: true,
+        runValidators: true
+      })
+    : user;
 
   res.json({ 
     message: "Profile updated successfully", 
-    user: sanitizeUser(user) 
+    user: sanitizeUser(updatedUser) 
   });
 });
 
@@ -59,13 +86,6 @@ export const uploadResume = asyncHandler(async (req, res) => {
     throw new Error("Resume file is required.");
   }
 
-  let extension = ".pdf";
-  if (req.file.originalname) {
-    extension = path.extname(req.file.originalname) || ".pdf";
-  }
-  
-  const resumeUrl = `/uploads/${Date.now()}-${req.user._id}${extension}`;
-
   const user = await User.findById(req.user._id);
 
   if (!user) {
@@ -73,12 +93,23 @@ export const uploadResume = asyncHandler(async (req, res) => {
     throw new Error("User not found.");
   }
 
-  user.resumeUrl = resumeUrl;
-  await user.save();
+  const resumeUrl = await saveResumeFile(req.file, req.user._id);
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      resumeUrl: resumeUrl,
+      resumeUpdatedAt: new Date()
+    },
+    {
+      new: true,
+      runValidators: true
+    }
+  );
 
   res.json({ 
-    message: "Resume uploaded successfully", 
-    resumeUrl: user.resumeUrl 
+    message: "Resume updated successfully", 
+    resumeUrl: updatedUser.resumeUrl,
+    user: sanitizeUser(updatedUser)
   });
 });
 
@@ -87,7 +118,7 @@ export const getRecommendedJobs = asyncHandler(async (req, res) => {
     .select("skills parsedData experience")
     .lean();
 
-  if (!user) {
+  if (!user) { 
     res.status(404);
     throw new Error("User not found.");
   }

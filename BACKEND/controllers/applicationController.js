@@ -1,8 +1,23 @@
+import fs from "fs/promises";
+import path from "path";
 import Application from "../models/Application.js";
 import Job from "../models/Job.js";
 import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import sendEmail from "../utils/sendEmail.js";
+
+const saveResumeFile = async (file, userId) => {
+  const uploadsDir = path.join(process.cwd(), "uploads");
+  await fs.mkdir(uploadsDir, { recursive: true });
+
+  const extension = path.extname(file.originalname || "") || ".pdf";
+  const fileName = `${Date.now()}-${userId}${extension}`;
+  const filePath = path.join(uploadsDir, fileName);
+
+  await fs.writeFile(filePath, file.buffer);
+
+  return `/uploads/${fileName}`;
+};
 
 const getEmailTemplate = (status, userName, jobTitle) => {
   const brandColor = "#7D66FD"; 
@@ -104,28 +119,40 @@ export const applyJob = asyncHandler(async (req, res) => {
     throw new Error("You have already applied for this job.");
   }
 
+  const currentUser = await User.findById(req.user._id);
+
+  if (!currentUser) {
+    res.status(404);
+    throw new Error("User not found.");
+  }
+
+  if (!currentUser.resumeUrl && !req.file) {
+    res.status(400);
+    throw new Error("Please upload your resume before applying.");
+  }
+
+  const updates = {};
+
+  if (req.body.name !== undefined) updates.name = req.body.name;
+  if (req.body.phone !== undefined) updates.phone = req.body.phone;
+  if (req.body.location !== undefined) updates.location = req.body.location;
+  if (req.body.experience !== undefined) updates.experience = req.body.experience;
+
+  if (req.file) {
+    updates.resumeUrl = await saveResumeFile(req.file, req.user._id);
+    updates.resumeUpdatedAt = new Date();
+  }
+
+  const user = Object.keys(updates).length > 0
+    ? await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true })
+    : currentUser;
+
   const application = await Application.create({
     user: req.user._id,
     job: job._id,
     status: "Pending",
     appliedAt: new Date()
   });
-
-  const updates = {};
-  if (req.body.name) updates.name = req.body.name;
-  if (req.body.experience) updates.experience = req.body.experience;
-  if (req.file && req.file.path) updates.resumeUrl = req.file.path;
-  
-  const user = await User.findOneAndUpdate(
-    { _id: req.user._id },
-    { $set: updates },
-    { new: true }
-  ).lean();
-
-  if (!user) {
-    res.status(404);
-    throw new Error("User not found.");
-  }
 
   if (user.email) {
     const emailOptions = getEmailTemplate("Applied", user.name, job.title);
@@ -134,7 +161,8 @@ export const applyJob = asyncHandler(async (req, res) => {
 
   res.status(201).json({ 
     message: "Application submitted successfully", 
-    application: application 
+    application: application,
+    user: user
   });
 });
 
@@ -152,7 +180,7 @@ export const getApplications = asyncHandler(async (req, res) => {
   const applications = await Application.find(query)
     .sort({ appliedAt: -1 })
     .populate("job", "title company location skillsRequired createdBy")
-    .populate("user", "name email skills experience education")
+    .populate("user", "name email skills experience education resumeUrl phone location parsedData")
     .lean();
 
   res.json(applications);

@@ -128,6 +128,7 @@ const login = async (values) => {
   const value = {
     token,
     user,
+    setUser,
     loading,
     login,
     register,
