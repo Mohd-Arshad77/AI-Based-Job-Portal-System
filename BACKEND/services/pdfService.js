@@ -6,5 +6,10 @@ export const extractTextFromPDF = async (buffer) => {
   }
 
   const pdfData = await pdfParse(buffer);
-  return pdfData.text?.trim() || "";
+
+  if (pdfData && pdfData.text) {
+    return pdfData.text.trim();
+  } else {
+    return ""; 
+  }
 };

@@ -5,9 +5,20 @@ export const notFound = (req, res, next) => {
 };
 
 export const errorHandler = (error, req, res, next) => {
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  res.status(statusCode).json({
-    message: error.message,
-    stack: process.env.NODE_ENV === "production" ? undefined : error.stack
-  });
+  let statusCode = res.statusCode;
+  if (statusCode === 200) {
+    statusCode = 500;
+  }
+
+  res.status(statusCode);
+
+  const errorResponse = {
+    message: error.message
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    errorResponse.stack = error.stack;
+  }
+
+  res.json(errorResponse);
 };

@@ -2,356 +2,222 @@ import Application from "../models/Application.js";
 import Interview from "../models/Interview.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import sendEmail from "../utils/sendEmail.js";
-import { compactUndefined, isDuplicateKeyError, notFoundObjectId, toObjectId } from "../utils/queryHelpers.js";
-
-const userEmailProject = { name: 1, email: 1 };
-const userProfileProject = { name: 1, email: 1, skills: 1, experience: 1, education: 1 };
-const applicationJobProject = { title: 1, company: 1, location: 1, createdBy: 1 };
-const interviewJobProject = { title: 1, company: 1, location: 1, skillsRequired: 1, createdBy: 1 };
-
-const buildInterviewPipeline = ({ match, sort, limit }) => [
-  { $match: match },
-  ...(sort ? [{ $sort: sort }] : []),
-  ...(limit ? [{ $limit: limit }] : []),
-  {
-    $lookup: {
-      from: "applications",
-      localField: "application",
-      foreignField: "_id",
-      pipeline: [
-        {
-          $lookup: {
-            from: "users",
-            localField: "user",
-            foreignField: "_id",
-            pipeline: [{ $project: userEmailProject }],
-            as: "user"
-          }
-        },
-        { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: "jobs",
-            localField: "job",
-            foreignField: "_id",
-            pipeline: [{ $project: applicationJobProject }],
-            as: "job"
-          }
-        },
-        { $unwind: { path: "$job", preserveNullAndEmptyArrays: true } },
-        { $project: { recruiter: 0 } }
-      ],
-      as: "application"
-    }
-  },
-  { $unwind: { path: "$application", preserveNullAndEmptyArrays: true } },
-  {
-    $lookup: {
-      from: "users",
-      localField: "user",
-      foreignField: "_id",
-      pipeline: [{ $project: userProfileProject }],
-      as: "user"
-    }
-  },
-  { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
-  {
-    $lookup: {
-      from: "jobs",
-      localField: "job",
-      foreignField: "_id",
-      pipeline: [{ $project: interviewJobProject }],
-      as: "job"
-    }
-  },
-  { $unwind: { path: "$job", preserveNullAndEmptyArrays: true } },
-  {
-    $lookup: {
-      from: "users",
-      localField: "recruiter",
-      foreignField: "_id",
-      pipeline: [{ $project: userEmailProject }],
-      as: "recruiter"
-    }
-  },
-  { $unwind: { path: "$recruiter", preserveNullAndEmptyArrays: true } }
-];
-
-const buildApplicationAccessPipeline = (applicationId, recruiterId) => [
-  { $match: { _id: applicationId } },
-  { $limit: 1 },
-  {
-    $lookup: {
-      from: "jobs",
-      let: { jobId: "$job" },
-      pipeline: [
-        {
-          $match: {
-            $expr: {
-              $and: [
-                { $eq: ["$_id", "$$jobId"] },
-                { $eq: ["$createdBy", recruiterId] }
-              ]
-            }
-          }
-        },
-        { $project: interviewJobProject }
-      ],
-      as: "job"
-    }
-  },
-  { $unwind: "$job" },
-  {
-    $lookup: {
-      from: "users",
-      localField: "user",
-      foreignField: "_id",
-      pipeline: [{ $project: userProfileProject }],
-      as: "user"
-    }
-  },
-  { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
-  { $project: { recruiter: 0 } }
-];
-
-const buildCreatedInterviewResponse = (interviewValue, application, recruiter) => {
-  const interview = interviewValue.toObject?.() || interviewValue;
-  const applicationJob = application.job
-    ? {
-        _id: application.job._id,
-        title: application.job.title,
-        company: application.job.company,
-        location: application.job.location,
-        createdBy: application.job.createdBy
-      }
-    : null;
-
-  return {
-    ...interview,
-    application: {
-      _id: application._id,
-      user: application.user,
-      job: applicationJob,
-      status: "Interview",
-      appliedAt: application.appliedAt,
-      createdAt: application.createdAt,
-      updatedAt: application.updatedAt,
-      __v: application.__v
-    },
-    user: application.user,
-    job: application.job,
-    recruiter: {
-      _id: recruiter._id,
-      name: recruiter.name,
-      email: recruiter.email
-    }
-  };
-};
 
 export const createInterview = asyncHandler(async (req, res) => {
-  const { applicationId, scheduledAt, mode, meetingLink, location, notes, status } = req.body;
-  const applicationObjectId = toObjectId(applicationId) || notFoundObjectId();
-  const recruiterId = toObjectId(req.user._id) || notFoundObjectId();
+  const { applicationId, scheduledAt, mode, meetingLink, location, notes } = req.body;
 
   if (!scheduledAt) {
     res.status(400);
-    throw new Error("Interview date and time is required.");
+    throw new Error("Interview date is required");
   }
 
-  const [application] = await Application.aggregate(buildApplicationAccessPipeline(applicationObjectId, recruiterId));
+  const application = await Application.findById(applicationId)
+    .populate("user", "name email")
+    .populate("job", "title");
 
   if (!application) {
     res.status(404);
-    throw new Error("Application not found or you are not allowed to schedule interviews for it.");
+    throw new Error("Application not found");
   }
 
-  const now = new Date();
-  let interviewResult;
-  try {
-    interviewResult = await Interview.findOneAndUpdate(
-      { application: application._id },
-      {
-        $setOnInsert: compactUndefined({
-          application: application._id,
-          user: application.user?._id,
-          job: application.job?._id,
-          recruiter: recruiterId,
-          scheduledAt,
-          mode,
-          meetingLink,
-          location,
-          notes,
-          status,
-          createdAt: now,
-          updatedAt: now
-        })
-      },
-      {
-        upsert: true,
-        new: true,
-        runValidators: true,
-        setDefaultsOnInsert: true,
-        includeResultMetadata: true,
-        timestamps: false
-      }
-    );
-  } catch (error) {
-    if (isDuplicateKeyError(error)) {
-      res.status(400);
-      throw new Error("Interview is already scheduled for this application.");
-    }
-    throw error;
-  }
+  const existing = await Interview.findOne({ application: applicationId });
 
-  if (interviewResult.lastErrorObject?.updatedExisting) {
+  if (existing) {
     res.status(400);
-    throw new Error("Interview is already scheduled for this application.");
+    throw new Error("Interview already exists");
   }
 
-  const applicationUpdatedAt = new Date();
-  await Application.updateOne(
-    { _id: application._id, status: { $ne: "Interview" } },
-    { $set: { status: "Interview", recruiter: recruiterId, updatedAt: applicationUpdatedAt } },
-    { runValidators: true, timestamps: false }
-  );
+  const interview = await Interview.create({
+    application: applicationId,
+    user: application.user._id, 
+    job: application.job._id,   
+    recruiter: req.user._id,
+    scheduledAt,
+    mode,
+    meetingLink,
+    location,
+    notes,
+    status: "Scheduled"
+  });
+
   application.status = "Interview";
-  application.updatedAt = applicationUpdatedAt;
+  application.recruiter = req.user._id;
+  await application.save();
 
-  const interview = buildCreatedInterviewResponse(interviewResult.value, application, req.user);
+  if (application.user && application.user.email) {
+    const formattedDate = new Date(scheduledAt).toLocaleDateString("en-IN", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const formattedTime = new Date(scheduledAt).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit', hour12: true });
 
-  if (application.user?.email) {
-    const interviewDate = new Date(interview.scheduledAt).toLocaleString();
-    const modeDetails = interview.mode === "Video Call"
-      ? `<p><strong>Meeting Link:</strong> <a href="${interview.meetingLink}" style="color: #7D66FD;">${interview.meetingLink}</a></p>`
-      : `<p><strong>Location:</strong> ${interview.location}</p>`;
+    let modeDetailsHTML = "";
+    if (mode === "Video Call") {
+        modeDetailsHTML = `<p style="margin: 5px 0;"><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #7D66FD; text-decoration: none; font-weight: bold;">Click here to join</a></p>`;
+    } else if (mode === "Onsite") {
+        modeDetailsHTML = `<p style="margin: 5px 0;"><strong>Location:</strong> ${location}</p>`;
+    } else {
+        modeDetailsHTML = `<p style="margin: 5px 0;"><strong>Mode:</strong> ${mode}</p>`;
+    }
 
     sendEmail({
       email: application.user.email,
       subject: `Interview Scheduled: ${application.job.title} at JobFlow`,
       html: `
-        <div style="font-family: sans-serif; line-height: 1.6;">
-          <h3>Hi ${application.user.name},</h3>
-          <p>Congratulations! You have been invited for an interview for the <strong>${application.job.title}</strong> position.</p>
-          <div style="background-color: #f3f0ff; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0; color: #7D66FD;">Interview Details:</h4>
-            <p><strong>Date & Time:</strong> ${interviewDate}</p>
-            <p><strong>Mode:</strong> ${interview.mode}</p>
-            ${modeDetails}
-          </div>
-          <p>Please be prepared and log in/arrive 5 minutes early.</p>
-          <br/>
-          <p>Best Regards,</p>
-          <p><strong>JobFlow Team</strong></p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111827; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <div style="padding: 30px; background-color: #ffffff;">
+                <h2 style="color: #7D66FD; margin-top: 0; display: flex; align-items: center; font-size: 20px;">
+                    <span style="background-color: #7D66FD; color: white; border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px;">📅</span> 
+                    Interview Invitation
+                </h2>
+                
+                <p style="font-size: 16px; line-height: 1.6; margin-top: 20px;">Dear ${application.user.name},</p>
+                
+                <p style="font-size: 16px; line-height: 1.6;">Congratulations! You have been selected for an interview for the <strong>${application.job.title}</strong> position.</p>
+                
+                <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #7D66FD;">
+                    <h4 style="margin: 0 0 15px 0; color: #374151; font-size: 16px;">Interview Details:</h4>
+                    <p style="margin: 5px 0;"><strong>Date:</strong> ${formattedDate}</p>
+                    <p style="margin: 5px 0;"><strong>Time:</strong> ${formattedTime}</p>
+                    ${modeDetailsHTML}
+                </div>
+                
+                <p style="font-size: 16px; line-height: 1.6;">Please be prepared and join 5 minutes prior to the scheduled time. If you have any questions, feel free to contact the recruiter via the JobFlow portal.</p>
+                <br/>
+                <p style="font-size: 16px;">Best Regards,<br><strong style="color: #7D66FD;">JobFlow Team</strong></p>
+            </div>
         </div>
       `
     }).catch((err) => console.error("Interview Email Error:", err.message));
   }
 
   res.status(201).json({
-    message: "Interview scheduled successfully",
+    message: "Interview created",
     interview
   });
 });
 
+
 export const getInterviews = asyncHandler(async (req, res) => {
-  const currentUserId = toObjectId(req.user._id) || notFoundObjectId();
-  const query = {};
+  const match = {};
 
   if (req.user.role === "recruiter") {
-    query.recruiter = currentUserId;
+    match.recruiter = req.user._id;
+  } else {
+    match.user = req.user._id;
   }
 
-  if (req.user.role === "user") {
-    query.user = currentUserId;
-  }
+  const interviews = await Interview.aggregate([
+    { $match: match },
 
-  if (req.query.applicationId) {
-    query.application = toObjectId(req.query.applicationId) || notFoundObjectId();
-  }
+    {
+      $lookup: {
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        as: "user"
+      }
+    },
+    { $unwind: "$user" },
 
-  if (req.query.jobId) {
-    query.job = toObjectId(req.query.jobId) || notFoundObjectId();
-  }
+    {
+      $lookup: {
+        from: "jobs",
+        localField: "job",
+        foreignField: "_id",
+        as: "job"
+      }
+    },
+    { $unwind: "$job" },
 
-  const interviews = await Interview.aggregate(buildInterviewPipeline({
-    match: query,
-    sort: { scheduledAt: 1, createdAt: -1 }
-  }));
+    {
+      $lookup: {
+        from: "users",
+        localField: "recruiter",
+        foreignField: "_id",
+        as: "recruiter"
+      }
+    },
+    { $unwind: "$recruiter" },
+
+    { $sort: { scheduledAt: 1 } }
+  ]);
 
   res.json(interviews);
 });
 
+
 export const getInterviewById = asyncHandler(async (req, res) => {
-  const interviewId = toObjectId(req.params.id) || notFoundObjectId();
-  const currentUserId = toObjectId(req.user._id) || notFoundObjectId();
-  const accessFilter = {
-    _id: interviewId,
-    ...(
-      req.user.role === "recruiter"
-        ? { recruiter: currentUserId }
-        : req.user.role === "user"
-          ? { user: currentUserId }
-          : { _id: notFoundObjectId() }
-    )
-  };
+  const match = { _id: req.params.id };
 
-  const [interview] = await Interview.aggregate(buildInterviewPipeline({
-    match: accessFilter,
-    limit: 1
-  }));
-
-  if (!interview) {
-    res.status(404);
-    throw new Error("Interview not found or you are not allowed to view it.");
+  if (req.user.role === "recruiter") {
+    match.recruiter = req.user._id;
+  } else {
+    match.user = req.user._id;
   }
 
-  res.json(interview);
+  const interview = await Interview.aggregate([
+    { $match: match },
+
+    {
+      $lookup: {
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        as: "user"
+      }
+    },
+    { $unwind: "$user" },
+
+    {
+      $lookup: {
+        from: "jobs",
+        localField: "job",
+        foreignField: "_id",
+        as: "job"
+      }
+    },
+    { $unwind: "$job" },
+
+    {
+      $lookup: {
+        from: "users",
+        localField: "recruiter",
+        foreignField: "_id",
+        as: "recruiter"
+      }
+    },
+    { $unwind: "$recruiter" }
+  ]);
+
+  if (!interview || interview.length === 0) {
+    res.status(404);
+    throw new Error("Interview not found");
+  }
+
+  res.json(interview[0]);
 });
 
+
 export const updateInterview = asyncHandler(async (req, res) => {
-  const interviewId = toObjectId(req.params.id) || notFoundObjectId();
-  const recruiterId = toObjectId(req.user._id) || notFoundObjectId();
-  const { scheduledAt, mode, meetingLink, location, notes, status } = req.body;
-  const updateFields = compactUndefined({
-    scheduledAt,
-    mode,
-    meetingLink,
-    location,
-    notes,
-    status
+  const interview = await Interview.findOne({
+    _id: req.params.id,
+    recruiter: req.user._id
   });
-
-  if (!Object.keys(updateFields).length) {
-    res.status(400);
-    throw new Error("No valid interview fields provided.");
-  }
-
-  const interview = await Interview.findOneAndUpdate(
-    { _id: interviewId, recruiter: recruiterId },
-    { $set: updateFields },
-    { new: true, runValidators: true }
-  ).lean();
 
   if (!interview) {
     res.status(404);
-    throw new Error("Interview not found or you are not allowed to update it.");
+    throw new Error("Interview not found");
   }
 
-  if (interview.application && interview.status === "Scheduled") {
-    await Application.updateOne(
-      { _id: interview.application, status: { $ne: "Interview" } },
-      { $set: { status: "Interview", recruiter: recruiterId, updatedAt: new Date() } },
-      { runValidators: true, timestamps: false }
-    );
-  }
+  if (req.body.scheduledAt) interview.scheduledAt = req.body.scheduledAt;
+  if (req.body.mode) interview.mode = req.body.mode;
+  if (req.body.meetingLink) interview.meetingLink = req.body.meetingLink;
+  if (req.body.location) interview.location = req.body.location;
+  if (req.body.notes !== undefined) interview.notes = req.body.notes;
+  if (req.body.status) interview.status = req.body.status;
 
-  const [updatedInterview] = await Interview.aggregate(buildInterviewPipeline({
-    match: { _id: interview._id, recruiter: recruiterId },
-    limit: 1
-  }));
+  await interview.save();
 
   res.json({
-    message: "Interview updated successfully",
-    interview: updatedInterview
+    message: "Interview updated",
+    interview
   });
 });

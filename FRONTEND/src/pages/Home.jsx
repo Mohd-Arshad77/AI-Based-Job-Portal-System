@@ -37,7 +37,7 @@ const JOB_SUGGESTIONS = [
   "Frontend Developer", "Full Stack Developer", "Flutter Developer",
   "Backend Developer", "Business Analyst", "React Developer", 
   "Ruby on Rails Developer", "UI/UX Designer", "Data Scientist", 
-  "DevOps Engineer", "Software Engineer", "Machine Learning Engineer"
+  "DevOps Engineer", "Software Engineer", "Machine Learning Engineer","Golang Developer"
 ];
 
 const LOCATION_SUGGESTIONS = [

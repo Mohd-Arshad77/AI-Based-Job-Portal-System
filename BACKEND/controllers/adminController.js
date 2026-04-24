@@ -1,90 +1,55 @@
 import User from "../models/User.js";
+import Job from "../models/Job.js";
+import Application from "../models/Application.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import sendEmail from "../utils/sendEmail.js";
-import crypto from "crypto"; 
-import { isDuplicateKeyError, normalizeEmail } from "../utils/queryHelpers.js";
+import crypto from "crypto";
 
 export const getDashboardStats = asyncHandler(async (req, res) => {
-  const [stats] = await User.aggregate([
-    {
-      $facet: {
-        roles: [
-          { $group: { _id: "$role", count: { $sum: 1 } } }
-        ]
-      }
-    },
-    {
-      $lookup: {
-        from: "jobs",
-        pipeline: [{ $count: "count" }],
-        as: "jobs"
-      }
-    },
-    {
-      $lookup: {
-        from: "applications",
-        pipeline: [{ $count: "count" }],
-        as: "applications"
-      }
-    },
-    {
-      $project: {
-        roleCounts: {
-          $arrayToObject: {
-            $map: {
-              input: "$roles",
-              as: "role",
-              in: { k: "$$role._id", v: "$$role.count" }
-            }
-          }
-        },
-        totalJobs: { $ifNull: [{ $arrayElemAt: ["$jobs.count", 0] }, 0] },
-        totalApplications: { $ifNull: [{ $arrayElemAt: ["$applications.count", 0] }, 0] }
-      }
-    },
-    {
-      $project: {
-        totalUsers: { $ifNull: ["$roleCounts.user", 0] },
-        totalRecruiters: { $ifNull: ["$roleCounts.recruiter", 0] },
-        totalJobs: 1,
-        totalApplications: 1
-      }
-    }
+  const [totalUsers, totalRecruiters, totalJobs, totalApplications] = await Promise.all([
+    User.countDocuments({ role: "user" }),
+    User.countDocuments({ role: "recruiter" }),
+    Job.countDocuments({}),
+    Application.countDocuments({})
   ]);
 
   res.json({
-    totalUsers: stats?.totalUsers || 0,
-    totalRecruiters: stats?.totalRecruiters || 0,
-    totalJobs: stats?.totalJobs || 0,
-    totalApplications: stats?.totalApplications || 0,
+    totalUsers: totalUsers || 0,
+    totalRecruiters: totalRecruiters || 0,
+    totalJobs: totalJobs || 0,
+    totalApplications: totalApplications || 0,
   });
 }); 
 
 export const inviteRecruiter = asyncHandler(async (req, res) => {
   const { name, email, company } = req.body;
-  const normalizedEmail = normalizeEmail(email);
+  
+  if (!email) {
+      res.status(400);
+      throw new Error("Email is required.");
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const existingUser = await User.findOne({ email: normalizedEmail });
+  
+  if (existingUser) {
+    res.status(400);
+    throw new Error("A user with this email already exists");
+  }
 
   const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
   const tempPassword = crypto.randomBytes(8).toString("hex");
 
-  let recruiter;
-  try {
-    recruiter = await User.create({
-      name,
-      email: normalizedEmail,
-      password: tempPassword,
-      role: "recruiter",
-      company,
-      isVerified: false,
-      verificationCode,
-    });
-  } catch (error) {
-    if (isDuplicateKeyError(error)) {
-      res.status(400);
-      throw new Error("A user with this email already exists");
-    }
-    throw error;
-  }
+  const recruiter = await User.create({
+    name: name,
+    email: normalizedEmail,
+    password: tempPassword,
+    role: "recruiter",
+    company: company,
+    isVerified: false,
+    verificationCode: verificationCode,
+  });
 
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const verificationLink = `${frontendUrl}/verify-recruiter?email=${recruiter.email}`;

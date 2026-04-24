@@ -4,68 +4,66 @@ import { generateAccessToken, generateRefreshToken } from "../utils/generateToke
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
-import { isDuplicateKeyError, normalizeEmail } from "../utils/queryHelpers.js";
 
-const sanitizeUser = (user) => ({
-  _id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  skills: user.skills,
-  experience: user.experience,
-  education: user.education,
-  resumeUrl: user.resumeUrl,
-  parsedData: user.parsedData
-});
+const sanitizeUser = (user) => {
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    skills: user.skills,
+    experience: user.experience,
+    education: user.education,
+    resumeUrl: user.resumeUrl,
+    parsedData: user.parsedData
+  };
+};
 
-const getCookieOptions = () => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax"
-});
+const getCookieOptions = () => {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax"
+  };
+};
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, skills, experience, education } = req.body;
-  const normalizedEmail = normalizeEmail(email);
-
+  
+  const normalizedEmail = email.toLowerCase().trim();
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  const unverifiedUser = await User.findOneAndUpdate(
-    { email: normalizedEmail, isVerified: false },
-    { $set: { verificationCode: otp } },
-    { new: true, runValidators: true }
-  ).lean();
+  const existingUser = await User.findOne({ email: normalizedEmail });
 
-  if (unverifiedUser) {
-    await sendEmail({
-      email: unverifiedUser.email,
-      subject: "Verify Your Account - OTP",
-      html: `<h2>Your OTP: ${otp}</h2>`
-    });
+  if (existingUser) {
+    if (existingUser.isVerified === false) {
+      existingUser.verificationCode = otp;
+      await existingUser.save();
 
-    return res.json({ success: true, requiresOTP: true, email: unverifiedUser.email });
-  }
+      await sendEmail({
+        email: existingUser.email,
+        subject: "Verify Your Account - OTP",
+        html: `<h2>Your OTP: ${otp}</h2>`
+      });
 
-  let user;
-  try {
-    user = await User.create({
-      name,
-      email: normalizedEmail,
-      password,
-      role: "user",
-      isVerified: false,
-      verificationCode: otp,
-      skills: skills || [],
-      experience: experience || "",
-      education: education || ""
-    });
-  } catch (error) {
-    if (isDuplicateKeyError(error)) {
+      return res.json({ success: true, requiresOTP: true, email: existingUser.email });
+    } else {
       res.status(400);
       throw new Error("Account already exists");
     }
-    throw error;
   }
+
+  const user = await User.create({
+    name: name,
+    email: normalizedEmail,
+    password: password,
+    role: "user",
+    isVerified: false,
+    verificationCode: otp,
+    skills: skills || [],
+    experience: experience || "",
+    education: education || ""
+  });
 
   await sendEmail({
     email: user.email,
@@ -78,26 +76,27 @@ export const register = asyncHandler(async (req, res) => {
 
 export const verifyUserOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
-  const normalizedEmail = normalizeEmail(email);
+  const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await User.findOneAndUpdate(
-    { email: normalizedEmail, verificationCode: otp },
-    {
-      $set: { isVerified: true },
-      $unset: { verificationCode: "" }
-    },
-    { new: true, runValidators: true }
-  ).lean();
+  const user = await User.findOne({ 
+    email: normalizedEmail, 
+    verificationCode: otp 
+  });
 
   if (!user) {
     res.status(400);
     throw new Error("Invalid OTP");
   }
 
+  user.isVerified = true;
+  user.verificationCode = undefined;
+  await user.save();
+
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  await User.updateOne({ _id: user._id }, { $set: { refreshToken } });
+  user.refreshToken = refreshToken;
+  await user.save();
 
   res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
   res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });
@@ -107,17 +106,21 @@ export const verifyUserOTP = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  const normalizedEmail = normalizeEmail(email);
+  const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await User.findOne({ email: normalizedEmail }).select("+password").lean();
+  const user = await User.findOne({ email: normalizedEmail }).select("+password");
 
-  const isMatch = user && (await User.comparePassword(password, user.password));
+  if (!user) {
+    return res.status(401).json({ message: "Invalid email or password" });
+  }
+
+  const isMatch = await User.comparePassword(password, user.password);
 
   if (!isMatch) {
     return res.status(401).json({ message: "Invalid email or password" });
   }
 
-  if (!user.isVerified) {
+  if (user.isVerified === false) {
      return res.status(403).json({ 
         message: "Your account is not verified. Please check your email for the OTP.",
         requiresOTP: true,
@@ -128,7 +131,8 @@ export const login = asyncHandler(async (req, res) => {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  await User.updateOne({ _id: user._id }, { $set: { refreshToken } });
+  user.refreshToken = refreshToken;
+  await user.save();
 
   res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
   res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });
@@ -140,7 +144,11 @@ export const logout = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
 
   if (refreshToken) {
-    await User.updateOne({ refreshToken }, { $set: { refreshToken: null } });
+    const user = await User.findOne({ refreshToken: refreshToken });
+    if (user) {
+      user.refreshToken = null;
+      await user.save();
+    }
   }
 
   res.clearCookie("accessToken", getCookieOptions());
@@ -151,34 +159,37 @@ export const logout = asyncHandler(async (req, res) => {
 
 export const verifyRecruiter = asyncHandler(async (req, res) => {
   const { email, verificationCode, newPassword } = req.body;
-  const normalizedEmail = normalizeEmail(email);
+  const normalizedEmail = email.toLowerCase().trim();
 
   if (!newPassword || newPassword.length < 6) {
     res.status(400);
     throw new Error("Password must be at least 6 characters");
   }
 
-  const hashedPassword = await User.hashPassword(newPassword);
-  const user = await User.findOneAndUpdate(
-    { email: normalizedEmail, role: "recruiter", verificationCode },
-    {
-      $set: { password: hashedPassword, isVerified: true },
-      $unset: { verificationCode: "" }
-    },
-    { new: true, runValidators: true }
-  ).lean();
+  const user = await User.findOne({ 
+    email: normalizedEmail, 
+    role: "recruiter", 
+    verificationCode: verificationCode 
+  });
 
   if (!user) {
     res.status(400);
     throw new Error("Invalid verification code");
   }
 
+  const hashedPassword = await User.hashPassword(newPassword);
+  
+  user.password = hashedPassword;
+  user.isVerified = true;
+  user.verificationCode = undefined;
+  
+  await user.save();
+
   res.json({ success: true });
 });
 
 export const googleAuth = asyncHandler(async (req, res) => {
   const { credential } = req.body;
-
   const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
   const ticket = await client.verifyIdToken({
@@ -187,29 +198,34 @@ export const googleAuth = asyncHandler(async (req, res) => {
   });
 
   const { email, name } = ticket.getPayload();
-  const normalizedEmail = normalizeEmail(email);
-  const randomPassword = crypto.randomBytes(16).toString("hex");
-  const hashedPassword = await User.hashPassword(randomPassword);
+  const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await User.findOneAndUpdate(
-    { email: normalizedEmail },
-    {
-      $set: { isVerified: true },
-      $unset: { verificationCode: "" },
-      $setOnInsert: {
-        name,
-        email: normalizedEmail,
-        password: hashedPassword,
-        role: "user"
-      }
-    },
-    { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
-  ).lean();
+  let user = await User.findOne({ email: normalizedEmail });
+
+  if (user) {
+    if (!user.isVerified) {
+      user.isVerified = true;
+      user.verificationCode = undefined;
+      await user.save();
+    }
+  } else {
+    const randomPassword = crypto.randomBytes(16).toString("hex");
+    const hashedPassword = await User.hashPassword(randomPassword);
+
+    user = await User.create({
+      name: name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: "user",
+      isVerified: true
+    });
+  }
 
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  await User.updateOne({ _id: user._id }, { $set: { refreshToken } });
+  user.refreshToken = refreshToken;
+  await user.save();
 
   res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
   res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });

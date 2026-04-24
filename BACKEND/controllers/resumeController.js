@@ -4,27 +4,43 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { parseResumeText } from "../utils/resumeParser.js";
 
 export const parseResume = asyncHandler(async (req, res) => {
-  if (!req.file) {
+  if (!req.file || req.file.mimetype !== "application/pdf") {
     res.status(400);
-    throw new Error("Resume PDF is required.");
+    throw new Error("Only PDF files are allowed.");
   }
 
   const text = await extractTextFromPDF(req.file.buffer);
+
+  if (!text) {
+    throw new Error("Failed to extract text");
+  }
+
   const parsedData = parseResumeText(text);
 
-  const updateResult = await User.updateOne(
-    { _id: req.user._id },
-    {
-      $set: { parsedData },
-      $addToSet: { skills: { $each: parsedData.skills || [] } }
-    },
-    { runValidators: true }
+  const updateQuery = {
+    $set: { parsedData: parsedData }
+  };
+
+  if (parsedData.skills && parsedData.skills.length > 0) {
+    updateQuery.$addToSet = {
+      skills: { $each: parsedData.skills }
+    };
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    updateQuery,
+    { new: true }
   );
 
-  if (updateResult.matchedCount === 0) {
+  if (!user) {
     res.status(404);
     throw new Error("User not found.");
   }
 
-  res.json({ message: "Resume parsed successfully", parsedData, resumeText: text });
+  res.json({
+    message: "Resume parsed successfully",
+    parsedData: parsedData,
+    resumeText: text
+  });
 });

@@ -11,6 +11,8 @@ function Navbar() {
     navigate("/");
   };
 
+
+
   const workspaceLink = user?.role === "recruiter" ? "/recruiter/manage" : "/dashboard";
 
   return (
@@ -59,9 +61,9 @@ function Navbar() {
           {user ? (
             <div className="flex items-center gap-5">
               <div className="hidden items-center gap-2 lg:flex">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-700">
+                <button onClick={() => navigate('/profile')} className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-700">
                   <User className="h-4 w-4" />
-                </div>
+                </button>
                 <span className="text-sm font-medium text-slate-700">
                   {user.company || user.name}
                 </span>

@@ -3,54 +3,54 @@ import User from "../models/User.js";
 import Run from "../models/Run.js";
 import Job from "../models/Job.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import { calculateJobMatch } from "../utils/resumeParser.js";
-import { compactUndefined } from "../utils/queryHelpers.js";
 
-const sanitizeUser = (user) => ({
-  _id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  skills: user.skills,
-  experience: user.experience,
-  education: user.education,
-  resumeUrl: user.resumeUrl,
-  parsedData: user.parsedData,
-  createdAt: user.createdAt
-});
+const sanitizeUser = (user) => {
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    skills: user.skills,
+    experience: user.experience,
+    education: user.education,
+    resumeUrl: user.resumeUrl,
+    parsedData: user.parsedData,
+    createdAt: user.createdAt
+  };
+};
 
 export const getProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("-password").lean();
-  res.json(user);
+  const user = await User.findById(req.user._id)
+    .select("-password")
+    .lean();
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  res.json(sanitizeUser(user));
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, skills, experience, education } = req.body;
-
-  const profileFields = compactUndefined({
-    name,
-    skills: Array.isArray(skills) ? skills : undefined,
-    experience,
-    education
-  });
-
-  if (!Object.keys(profileFields).length) {
-    res.status(400);
-    throw new Error("No valid profile fields provided.");
-  }
-
-  const user = await User.findOneAndUpdate(
-    { _id: req.user._id },
-    { $set: profileFields },
-    { new: true, runValidators: true }
-  ).select("-password").lean();
+  const user = await User.findById(req.user._id);
 
   if (!user) {
     res.status(404);
     throw new Error("User not found.");
   }
 
-  res.json({ message: "Profile updated successfully", user: sanitizeUser(user) });
+  if (req.body.name) user.name = req.body.name;
+  if (Array.isArray(req.body.skills)) user.skills = req.body.skills;
+  if (req.body.experience) user.experience = req.body.experience;
+  if (req.body.education) user.education = req.body.education;
+
+  await user.save();
+
+  res.json({ 
+    message: "Profile updated successfully", 
+    user: sanitizeUser(user) 
+  });
 });
 
 export const uploadResume = asyncHandler(async (req, res) => {
@@ -59,54 +59,110 @@ export const uploadResume = asyncHandler(async (req, res) => {
     throw new Error("Resume file is required.");
   }
 
-  const extension = path.extname(req.file.originalname || ".pdf") || ".pdf";
+  let extension = ".pdf";
+  if (req.file.originalname) {
+    extension = path.extname(req.file.originalname) || ".pdf";
+  }
+  
   const resumeUrl = `/uploads/${Date.now()}-${req.user._id}${extension}`;
 
-  const user = await User.findOneAndUpdate(
-    { _id: req.user._id },
-    { $set: { resumeUrl } },
-    { new: true, runValidators: true }
-  ).select("resumeUrl").lean();
+  const user = await User.findById(req.user._id);
 
   if (!user) {
     res.status(404);
     throw new Error("User not found.");
   }
 
-  res.json({ message: "Resume uploaded successfully", resumeUrl: user.resumeUrl });
+  user.resumeUrl = resumeUrl;
+  await user.save();
+
+  res.json({ 
+    message: "Resume uploaded successfully", 
+    resumeUrl: user.resumeUrl 
+  });
 });
 
 export const getRecommendedJobs = asyncHandler(async (req, res) => {
-  const [user, jobs] = await Promise.all([
-    User.findById(req.user._id).lean(),
-    Job.find({ isActive: true, isApproved: true }).lean()
-  ]);
+  const user = await User.findById(req.user._id)
+    .select("skills parsedData experience")
+    .lean();
 
   if (!user) {
     res.status(404);
     throw new Error("User not found.");
   }
 
-  const recommendations = jobs
-    .map((job) => {
-      const { matchedSkills, score } = calculateJobMatch(
-        user.skills?.length ? user.skills : user.parsedData?.skills || [],
-        job.skillsRequired || []
-      );
+  const userSkills = user.skills?.length > 0
+    ? user.skills
+    : user.parsedData?.skills || [];
 
-      return { ...job, matchedSkills, matchScore: score };
-    })
-    .sort((a, b) => b.matchScore - a.matchScore);
+  if (userSkills.length === 0) {
+    return res.json([]);
+  }
+
+  const recommendations = await Job.aggregate([
+    {
+      $match: {
+        isActive: true,
+        isApproved: true,
+        skillsRequired: { $exists: true, $ne: [] }
+      }
+    },
+    {
+      $addFields: {
+        matchedSkills: {
+          $setIntersection: ["$skillsRequired", userSkills]
+        }
+      }
+    },
+    {
+      $addFields: {
+        matchScore: {
+          $cond: [
+            { $gt: [{ $size: "$skillsRequired" }, 0] },
+            {
+              $divide: [
+                { $size: "$matchedSkills" },
+                { $size: "$skillsRequired" }
+              ]
+            },
+            0
+          ]
+        }
+      }
+    },
+    {
+      $match: { matchScore: { $gt: 0 } }
+    },
+    {
+      $sort: { matchScore: -1 }
+    },
+    {
+      $limit: 10
+    },
+    {
+      $project: {
+        _id: 1,
+        jobId: "$_id",
+        title: 1,
+        company: 1,
+        matchedSkills: 1,
+        matchScore: 1,
+        score: "$matchScore"
+      }
+    }
+  ]);
+
+  const resumeText =
+    user.parsedData?.summary ||
+    user.experience ||
+    "Profile-based recommendation";
 
   await Run.create({
     userId: user._id,
-    resumeText: user.parsedData?.summary || user.experience || "Profile-based recommendation",
-    extractedSkills: user.skills?.length ? user.skills : user.parsedData?.skills || [],
-    recommendedJobs: recommendations.slice(0, 10).map((job) => ({
-      jobId: job._id,
-      matchedSkills: job.matchedSkills,
-      score: job.matchScore
-    }))
+    resumeText: resumeText,
+    extractedSkills: userSkills,
+    recommendedJobs: recommendations
   });
 
   res.json(recommendations);
