@@ -1,6 +1,11 @@
+import { useEffect, useState, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { ArrowRight, BriefcaseBusiness, LogOut, User } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, LogOut, User, Bell } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { notificationApi } from "../services/api.js";
+import { io } from "socket.io-client";
+
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : "http://localhost:5000";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -11,7 +16,71 @@ function Navbar() {
     navigate("/");
   };
 
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
+  useEffect(() => {
+    if (user && user._id) {
+      const fetchNotifications = async () => {
+        try {
+          const { data } = await notificationApi.list();
+          setNotifications(data);
+          setUnreadCount(data.filter((n) => !n.isRead).length);
+        } catch (error) {
+          console.error("Failed to fetch notifications", error);
+        }
+      };
+      
+      fetchNotifications();
+
+      const socket = io(SOCKET_URL);
+      
+      socket.on("connect", () => {
+        socket.emit("register_user", user._id);
+      });
+
+      socket.on("new_notification", (newNotif) => {
+        setNotifications((prev) => [newNotif, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleMarkAsRead = async () => {
+    try {
+      await notificationApi.markAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Failed to mark notifications as read", error);
+    }
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 60000);
+    if (diff < 1) return "Just now";
+    if (diff < 60) return `${diff} min ago`;
+    if (diff < 1440) return `${Math.floor(diff/60)} hours ago`;
+    return `${Math.floor(diff/1440)} days ago`;
+  };
 
   const workspaceLink = user?.role === "recruiter" ? "/recruiter/manage" : "/dashboard";
 
@@ -76,6 +145,58 @@ function Navbar() {
                 Dashboard
               </Link>
               
+              <div className="relative" ref={dropdownRef}>
+                <button 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white transition-all hover:border-indigo-200 hover:bg-indigo-50"
+                  title="Notifications"
+                >
+                  <Bell className="h-5 w-5 text-slate-500 hover:text-indigo-600" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-80 rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden z-50">
+                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-slate-50/80">
+                      <h3 className="font-semibold text-slate-800">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <button 
+                          onClick={handleMarkAsRead}
+                          className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-sm text-slate-500 bg-white">
+                          No notifications yet.
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div 
+                            key={notif._id} 
+                            className={`border-b border-slate-50 px-4 py-3 transition-colors ${!notif.isRead ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : 'bg-white hover:bg-slate-50'}`}
+                          >
+                            <p className={`text-sm ${!notif.isRead ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
+                              {notif.message}
+                            </p>
+                            <p className="mt-1.5 text-xs font-medium text-slate-400">
+                              {formatTime(notif.createdAt)}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button 
                 onClick={handleLogout} 
                 className="group flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white transition-all hover:border-rose-200 hover:bg-rose-50"

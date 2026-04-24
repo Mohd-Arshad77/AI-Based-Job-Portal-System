@@ -2,6 +2,8 @@ import Application from "../models/Application.js";
 import Interview from "../models/Interview.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import sendEmail from "../utils/sendEmail.js";
+import Notification from "../models/Notification.js";
+import { io, getReceiverSocketId } from "../socket.js";
 
 export const createInterview = asyncHandler(async (req, res) => {
   const { applicationId, scheduledAt, mode, meetingLink, location, notes } = req.body;
@@ -39,6 +41,29 @@ export const createInterview = asyncHandler(async (req, res) => {
     notes,
     status: "Scheduled"
   });
+
+  const interviewTime = new Date(scheduledAt).getTime();
+  const tenMinutesBefore = interviewTime - 10 * 60 * 1000;
+  const timeUntilReminder = tenMinutesBefore - Date.now();
+
+  if (timeUntilReminder > 0) {
+    setTimeout(async () => {
+      try {
+        const notifyUser = await Notification.create({
+          userId: application.user._id,
+          type: "interview",
+          message: `Your interview for ${application.job.title} is starting in 10 minutes!`
+        });
+        const userSocket = getReceiverSocketId(application.user._id.toString());
+        if (userSocket) {
+          io.to(userSocket).emit("interview_reminder", notifyUser);
+          io.to(userSocket).emit("new_notification", notifyUser);
+        }
+      } catch (err) {
+        console.error("Reminder error", err);
+      }
+    }, timeUntilReminder);
+  }
 
   application.status = "Interview";
   application.recruiter = req.user._id;

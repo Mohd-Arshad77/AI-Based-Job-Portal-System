@@ -12,12 +12,12 @@ import applicationRoutes from "./routes/applicationRoutes.js";
 import interviewRoutes from "./routes/interviewRoutes.js";
 import runRoutes from "./routes/runRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
-import adminRoutes from "./routes/adminRoutes.js"
+import adminRoutes from "./routes/adminRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import { app, server } from "./socket.js";
 
 dotenv.config();
 connectDB();
-
-const app = express();
 const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173,http://localhost:5174")
   .split(",")
   .map((origin) => origin.trim())
@@ -41,13 +41,14 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/runs", runRoutes);
-app.use("/api/admin", adminRoutes)
+app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

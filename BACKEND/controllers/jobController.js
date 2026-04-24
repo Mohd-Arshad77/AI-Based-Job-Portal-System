@@ -1,4 +1,7 @@
 import Job from "../models/Job.js";
+import User from "../models/User.js";
+import Notification from "../models/Notification.js";
+import { io, getReceiverSocketId } from "../socket.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { calculateJobMatch } from "../utils/resumeParser.js";
 
@@ -15,6 +18,29 @@ export const createJob = asyncHandler(async (req, res) => {
     isActive: true,     
     isApproved: true
   });
+
+  if (job.skillsRequired && job.skillsRequired.length > 0) {
+    const matchingUsers = await User.find({
+      role: "user",
+      $or: [
+        { skills: { $in: job.skillsRequired } },
+        { "parsedData.skills": { $in: job.skillsRequired } }
+      ]
+    });
+
+    for (const u of matchingUsers) {
+      const notifyUser = await Notification.create({
+        userId: u._id,
+        type: "job",
+        message: `A new job "${job.title}" matching your skills was just posted!`
+      });
+      const userSocket = getReceiverSocketId(u._id.toString());
+      if (userSocket) {
+        io.to(userSocket).emit("new_job_match", notifyUser);
+        io.to(userSocket).emit("new_notification", notifyUser);
+      }
+    }
+  }
 
   res.status(201).json({ message: "Job created successfully", job });
 });

@@ -15,10 +15,13 @@ import AdminRoute from "./components/AdminRoute.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import VerifyRecruiter from "./pages/auth/VerifyRecruiter.jsx";
 import NotFound from "./pages/NotFound.jsx";
+import NotificationToast from "./components/NotificationToast.jsx";
 
 function App() {
   return (
-    <Routes>
+    <>
+      <NotificationToast />
+      <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
@@ -46,6 +49,7 @@ function App() {
             <Route path="*" element={<NotFound />} />
 
     </Routes>
+    </>
   );
 }
 

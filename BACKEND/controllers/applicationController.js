@@ -5,6 +5,9 @@ import Job from "../models/Job.js";
 import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import sendEmail from "../utils/sendEmail.js";
+import Notification from "../models/Notification.js";
+import { io, getReceiverSocketId } from "../socket.js";
+import { calculateJobMatch } from "../utils/resumeParser.js";
 
 const saveResumeFile = async (file, userId) => {
   const uploadsDir = path.join(process.cwd(), "uploads");
@@ -153,6 +156,35 @@ export const applyJob = asyncHandler(async (req, res) => {
     status: "Pending",
     appliedAt: new Date()
   });
+
+  const recruiterSocketId = getReceiverSocketId(job.createdBy.toString());
+  
+  const notifyRecruiter = await Notification.create({
+    userId: job.createdBy,
+    type: "application",
+    message: `New application received for ${job.title} from ${user.name}`
+  });
+  
+  if (recruiterSocketId) {
+    io.to(recruiterSocketId).emit("new_application", notifyRecruiter);
+    io.to(recruiterSocketId).emit("new_notification", notifyRecruiter);
+  }
+
+  let userSkills = user.skills?.length > 0 ? user.skills : (user.parsedData?.skills || []);
+  const jobSkills = job.skillsRequired || [];
+  const matchResult = calculateJobMatch(userSkills, jobSkills);
+
+  if (matchResult.score > 70) {
+    const notifyHighQuality = await Notification.create({
+      userId: job.createdBy,
+      type: "application",
+      message: `High quality candidate (${matchResult.score}% match) applied for ${job.title}`
+    });
+    if (recruiterSocketId) {
+      io.to(recruiterSocketId).emit("high_quality_candidate", notifyHighQuality);
+      io.to(recruiterSocketId).emit("new_notification", notifyHighQuality);
+    }
+  }
 
   if (user.email) {
     const emailOptions = getEmailTemplate("Applied", user.name, job.title);

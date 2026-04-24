@@ -75,4 +75,9 @@ export const recruiterApi = {
     api.post("/auth/verify-recruiter", data)
 };
 
+export const notificationApi = {
+  list: () => api.get("/notifications"),
+  markAsRead: () => api.put("/notifications/read")
+};
+
 export default api;

@@ -3,6 +3,8 @@ import path from "path";
 import User from "../models/User.js";
 import Run from "../models/Run.js";
 import Job from "../models/Job.js";
+import Notification from "../models/Notification.js";
+import { io, getReceiverSocketId } from "../socket.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 const sanitizeUser = (user) => {
@@ -37,13 +39,28 @@ const saveResumeFile = async (file, userId) => {
 };
 
 export const getProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id)
+  const targetUserId = req.query.userId || req.user._id;
+
+  const user = await User.findById(targetUserId)
     .select("-password")
     .lean();
 
   if (!user) {
     res.status(404);
     throw new Error("User not found");
+  }
+
+  if (req.query.userId && req.user.role === "recruiter" && req.query.userId !== req.user._id.toString()) {
+    const notifyUser = await Notification.create({
+      userId: targetUserId,
+      type: "profile_view",
+      message: `A recruiter just viewed your profile!`
+    });
+    const userSocket = getReceiverSocketId(targetUserId.toString());
+    if (userSocket) {
+      io.to(userSocket).emit("profile_viewed", notifyUser);
+      io.to(userSocket).emit("new_notification", notifyUser);
+    }
   }
 
   res.json(sanitizeUser(user));
