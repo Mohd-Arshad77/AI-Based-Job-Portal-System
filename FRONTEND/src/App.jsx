@@ -28,6 +28,7 @@ function App() {
       <Route path="/verify-recruiter" element={<VerifyRecruiter />} />
 
       <Route element={<ProtectedRoute roles={["user"]} />}>
+        <Route path="/home" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/jobs" element={<Jobs />} />
         <Route path="/jobs/:id" element={<JobDetails />} />
@@ -37,6 +38,7 @@ function App() {
       </Route>
 
       <Route element={<ProtectedRoute roles={["recruiter"]} />}>
+        <Route path="/recruiter" element={<ManageJobs />} />
         <Route path="/recruiter/dashboard" element={<ManageJobs />} />
         <Route path="/recruiter/manage" element={<ManageJobs />} />
         <Route path="/recruiter/create" element={<ManageJobs />} />

@@ -82,7 +82,11 @@ function Navbar() {
     return `${Math.floor(diff/1440)} days ago`;
   };
 
-  const workspaceLink = user?.role === "recruiter" ? "/recruiter/manage" : "/dashboard";
+  const workspaceLink = user?.role === "admin" 
+    ? "/admin" 
+    : user?.role === "recruiter" 
+      ? "/recruiter/dashboard" 
+      : "/dashboard";
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-md transition-all">
@@ -97,7 +101,7 @@ function Navbar() {
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex">
-            {user?.role !== "recruiter" && (
+            {!user && (
               <NavLink 
                 to="/" 
                 end 
@@ -110,18 +114,41 @@ function Navbar() {
                 Home
               </NavLink>
             )}
-            
+
+            {user?.role === "admin" && (
+              <>
+                <NavLink to="/admin" className={({ isActive }) => `text-sm transition-all hover:text-indigo-950 ${isActive ? "font-semibold text-indigo-900 border-b-2 border-indigo-600 py-1" : "font-medium text-slate-500 py-1"}`}>
+                  Dashboard
+                </NavLink>
+                <NavLink to="/admin" className="text-sm font-medium text-slate-500 py-1 hover:text-indigo-950">
+                  Manage Users
+                </NavLink>
+                <NavLink to="/admin" className="text-sm font-medium text-slate-500 py-1 hover:text-indigo-950">
+                  Manage Jobs
+                </NavLink>
+              </>
+            )}
+
             {user?.role === "user" && (
-              <NavLink 
-                to="/jobs" 
-                className={({ isActive }) => `text-sm transition-all hover:text-indigo-950 ${
-                  isActive 
-                    ? "font-semibold text-indigo-900 border-b-2 border-indigo-600 py-1" 
-                    : "font-medium text-slate-500 py-1"
-                }`}
-              >
-                Explore Jobs
-              </NavLink>
+              <>
+                <NavLink to="/profile" className={({ isActive }) => `text-sm transition-all hover:text-indigo-950 ${isActive ? "font-semibold text-indigo-900 border-b-2 border-indigo-600 py-1" : "font-medium text-slate-500 py-1"}`}>
+                  Profile
+                </NavLink>
+                <NavLink to="/jobs" className={({ isActive }) => `text-sm transition-all hover:text-indigo-950 ${isActive ? "font-semibold text-indigo-900 border-b-2 border-indigo-600 py-1" : "font-medium text-slate-500 py-1"}`}>
+                  Jobs
+                </NavLink>
+              </>
+            )}
+
+            {user?.role === "recruiter" && (
+              <>
+                <NavLink to="/recruiter/manage" className={({ isActive }) => `text-sm transition-all hover:text-indigo-950 ${isActive ? "font-semibold text-indigo-900 border-b-2 border-indigo-600 py-1" : "font-medium text-slate-500 py-1"}`}>
+                  Manage Jobs
+                </NavLink>
+                <NavLink to="/recruiter/manage" className="text-sm font-medium text-slate-500 py-1 hover:text-indigo-950">
+                  Applicants
+                </NavLink>
+              </>
             )}
           </nav>
         </div>

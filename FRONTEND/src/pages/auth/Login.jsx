@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { User, Lock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -15,10 +15,18 @@ const getHomePath = (user) => {
 function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginWithGoogle, loading } = useAuth();
+  const { login, loginWithGoogle, loading, isAuthenticated, user } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
+  
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "admin") navigate("/admin");
+      else if (user.role === "recruiter") navigate("/recruiter/manage");
+      else navigate("/dashboard");
+    }
+  }, [isAuthenticated, user, navigate]);
 
 const redirectAfterAuth = (userData) => {
     const actualUser = userData?.role ? userData : userData?.user;
@@ -30,11 +38,16 @@ const redirectAfterAuth = (userData) => {
     }
 
     if (role === "recruiter") {
-      navigate("/recruiter/manage", { replace: true });
+      navigate("/recruiter", { replace: true });
       return;
     }
 
-    const from = location.state?.from?.pathname || "/dashboard";
+    if (role === "user") {
+      navigate("/home", { replace: true });
+      return;
+    }
+
+    const from = location.state?.from?.pathname || "/";
     navigate(from, { replace: true });
   };
 

@@ -7,7 +7,7 @@ import upload from "../middleware/uploadMiddleware.js";
 const router = express.Router();
 
 router.post("/:jobId", protect, authorizeRoles("user"), upload.single("resume"), applyJob);
-router.get("/", protect, getApplications);
+router.get("/", protect, authorizeRoles("user", "recruiter"), getApplications);
 router.patch("/:id/status", protect, authorizeRoles("recruiter"), updateStatus);
 
 export default router;

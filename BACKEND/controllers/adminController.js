@@ -88,3 +88,55 @@ export const inviteRecruiter = asyncHandler(async (req, res) => {
     message: "Recruiter invited successfully",
   });
 });
+
+export const getAllUsers = asyncHandler(async (req, res) => {
+  console.log("Admin requesting all users:", req.user);
+  const users = await User.find();
+  res.json({ success: true, data: users });
+});
+
+export const toggleUserBlock = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  user.isBlocked = !user.isBlocked;
+  await user.save();
+  res.json({ success: true, message: `User ${user.isBlocked ? "blocked" : "unblocked"} successfully` });
+});
+
+export const deleteUser = asyncHandler(async (req, res) => {
+  const user = await User.findByIdAndDelete(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  res.json({ success: true, message: "User deleted successfully" });
+});
+
+export const getAllJobs = asyncHandler(async (req, res) => {
+  console.log("Admin requesting all jobs:", req.user);
+  const jobs = await Job.find().populate("createdBy", "name email");
+  res.json({ success: true, data: jobs });
+});
+
+export const toggleJobDisable = asyncHandler(async (req, res) => {
+  const job = await Job.findById(req.params.id);
+  if (!job) {
+    res.status(404);
+    throw new Error("Job not found");
+  }
+  job.isActive = !job.isActive;
+  await job.save();
+  res.json({ success: true, message: `Job ${job.isActive ? "enabled" : "disabled"} successfully` });
+});
+
+export const deleteJob = asyncHandler(async (req, res) => {
+  const job = await Job.findByIdAndDelete(req.params.id);
+  if (!job) {
+    res.status(404);
+    throw new Error("Job not found");
+  }
+  res.json({ success: true, message: "Job deleted successfully" });
+});

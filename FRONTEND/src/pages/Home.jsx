@@ -63,6 +63,8 @@ function Home() {
   useEffect(() => {
     if (user?.role === "recruiter") {
       navigate("/recruiter/manage");
+    } else if (user?.role === "admin") {
+      navigate("/admin");
     }
   }, [user, navigate]);
 

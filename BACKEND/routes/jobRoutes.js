@@ -5,7 +5,7 @@ import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.route("/")
-  .get(protect, getJobs)
+  .get(protect, authorizeRoles("user", "recruiter"), getJobs)
   .post(protect, authorizeRoles("recruiter"), createJob);
 
 router.get("/:id", getSingleJob);

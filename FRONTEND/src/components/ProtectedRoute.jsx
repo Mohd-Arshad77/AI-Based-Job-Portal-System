@@ -20,14 +20,16 @@ function ProtectedRoute({ roles = [] }) {
 
   if (roles.length > 0 && !roles.includes(user.role)) {
 
-    if (user.role === "admin") return <Outlet />;
+    if (user.role === "admin") {
+      return <Navigate to="/admin" replace />;
+    }
 
     if (user.role === "recruiter") {
-      return <Navigate to="/recruiter/manage" replace />;
+      return <Navigate to="/recruiter" replace />;
     }
 
     if (user.role === "user") {
-      return <Navigate to="/dashboard" replace />;
+      return <Navigate to="/home" replace />;
     }
 
     return <Navigate to="/" replace />;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { User, Lock, Mail } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -20,6 +20,16 @@ function Register() {
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOtp] = useState("");
   const [verifyEmail, setVerifyEmail] = useState("");
+  
+  const { isAuthenticated, user: authUser } = useAuth();
+  
+  useEffect(() => {
+    if (isAuthenticated && authUser) {
+      if (authUser.role === "admin") navigate("/admin");
+      else if (authUser.role === "recruiter") navigate("/recruiter/manage");
+      else navigate("/dashboard");
+    }
+  }, [isAuthenticated, authUser, navigate]);
 
   const validate = () => {
     const nextErrors = {};
