@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { User, Lock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { GoogleLogin } from "@react-oauth/google";
+import toast from "react-hot-toast";
 
 const initialForm = { email: "", password: "" };
 
@@ -38,12 +39,12 @@ const redirectAfterAuth = (userData) => {
     }
 
     if (role === "recruiter") {
-      navigate("/recruiter", { replace: true });
+      navigate("/recruiter/manage", { replace: true });
       return;
     }
 
     if (role === "user") {
-      navigate("/home", { replace: true });
+      navigate("/dashboard", { replace: true });
       return;
     }
 
@@ -71,7 +72,8 @@ const redirectAfterAuth = (userData) => {
     if (result.success) {
       redirectAfterAuth(result.user);
     } else {
-      setMessage(result.message); 
+      setMessage(result.message);
+      toast.error(result.message);
     }
   };
 
@@ -89,6 +91,7 @@ const redirectAfterAuth = (userData) => {
       redirectAfterAuth(result.user);
     } else {
       setMessage(result.message);
+      toast.error(result.message);
     }
   };
 

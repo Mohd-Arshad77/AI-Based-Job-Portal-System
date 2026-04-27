@@ -114,8 +114,11 @@ export const login = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email: normalizedEmail }).select("+password");
 
   if (!user) {
-    return res.status(401).json({ message: "Invalid email or password" });
+    return res.status(401).json({ message: "User not found" });
   }
+
+  console.log("LOGIN USER:", user.email, "ROLE:", user.role);
+  console.log("BLOCK STATUS:", user.isBlocked);
 
   const isMatch = await User.comparePassword(password, user.password);
 
@@ -124,7 +127,7 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (user.isBlocked) {
-    return res.status(403).json({ message: "Your account has been blocked. Contact admin." });
+    return res.status(403).json({ message: "Your account is blocked. Contact admin." });
   }
 
   if (user.isVerified === false) {

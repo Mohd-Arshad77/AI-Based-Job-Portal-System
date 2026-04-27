@@ -108,6 +108,19 @@ const userSchema = new mongoose.Schema(
 );
 
 
+// Clean role-specific fields before saving
+userSchema.pre("save", function (next) {
+  if (this.role === "recruiter" || this.role === "admin") {
+    this.skills = undefined;
+    this.experience = undefined;
+    this.education = undefined;
+    this.resumeUrl = undefined;
+    this.resumeUpdatedAt = undefined;
+    this.parsedData = undefined;
+  }
+  next();
+});
+
 // 🔐 Hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

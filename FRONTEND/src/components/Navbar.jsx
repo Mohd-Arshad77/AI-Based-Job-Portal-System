@@ -88,6 +88,39 @@ function Navbar() {
       ? "/recruiter/dashboard" 
       : "/dashboard";
 
+  // Admin gets a minimal navbar — no links, no notifications
+  if (user?.role === "admin") {
+    return (
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link to="/admin" className="group flex items-center gap-3 transition-opacity hover:opacity-90">
+            <div className="flex h-8 w-8 items-center justify-center text-indigo-900">
+              <BriefcaseBusiness className="h-7 w-7" />
+            </div>
+            <p className="text-xl font-bold tracking-tight text-indigo-950">JobFlow</p>
+          </Link>
+
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-700">
+                <User className="h-4 w-4" />
+              </div>
+              <span className="text-sm font-medium text-slate-700">{user.name}</span>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="group flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white transition-all hover:border-rose-200 hover:bg-rose-50"
+              title="Log out"
+            >
+              <LogOut className="h-4 w-4 text-slate-400 transition-colors group-hover:text-rose-600" />
+            </button>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-md transition-all">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">

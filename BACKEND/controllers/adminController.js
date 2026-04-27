@@ -97,10 +97,11 @@ export const deleteUser = asyncHandler(async (req, res) => {
 // ─── Get All Jobs ──────────────────────────────────────────────────
 export const getJobs = asyncHandler(async (req, res) => {
   const jobs = await Job.find({})
-    .select("title company status isActive createdAt")
     .populate("createdBy", "name email")
     .sort({ createdAt: -1 })
     .lean();
+
+  console.log("TOTAL JOBS:", jobs.length);
 
   res.json(jobs);
 });

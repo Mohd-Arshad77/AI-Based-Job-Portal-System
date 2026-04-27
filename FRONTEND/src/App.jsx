@@ -3,6 +3,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import PublicRoute from "./components/PublicRoute.jsx";
 import Loader from "./components/Loader.jsx";
+import { Toaster } from "react-hot-toast";
 
 import Home from "./pages/Home.jsx";
 import Login from "./pages/auth/Login.jsx";
@@ -36,6 +37,7 @@ function App() {
   return (
     <>
       <NotificationToast />
+      <Toaster position="top-center" toastOptions={{ duration: 4000, style: { fontSize: "14px" } }} />
 
       <Routes>
 
