@@ -7,7 +7,10 @@ import { AnimatePresence, motion } from "framer-motion";
 // const SOCKET_URL = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : "";
 const SOCKET_URL = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL.replace(/\/api$/, "")
-  : "";
+  : "http://localhost:5000";
+
+console.log("SOCKET:", SOCKET_URL);
+
 
 export default function NotificationToast() {
   const { user } = useAuth();
