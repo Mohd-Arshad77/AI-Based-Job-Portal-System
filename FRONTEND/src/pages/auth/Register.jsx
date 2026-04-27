@@ -110,7 +110,7 @@ function Register() {
               className="h-full w-full object-cover"
             />
           </div>
-          <div className="relative z-10 w-full mb-4">
+          <div className="relative z-12 w-full mb-4">
             <h2 className="text-2xl font-bold leading-tight mb-3 tracking-wide">Looking for your dream job?</h2>
             <p className="text-white/80 text-xs leading-relaxed max-w-[90%] font-medium">
               Discover thousands of opportunities and connect with top recruiters seamlessly.
