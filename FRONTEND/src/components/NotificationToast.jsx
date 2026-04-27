@@ -6,10 +6,10 @@ import { AnimatePresence, motion } from "framer-motion";
 
 // const SOCKET_URL = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : "";
 const SOCKET_URL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace(/\/api$/, "")
-  : "http://localhost:5000";
+  ? import.meta.env.VITE_API_URL.replace("/api", "")
+  : "";
 
-console.log("SOCKET:", SOCKET_URL);
+const socket = io(SOCKET_URL);
 
 
 export default function NotificationToast() {
