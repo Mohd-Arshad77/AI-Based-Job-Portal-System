@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-// 🔹 Parsed Resume Data
 const parsedDataSchema = new mongoose.Schema(
   {
     skills: [String],
@@ -12,7 +11,6 @@ const parsedDataSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// 🔹 Main User Schema
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -24,7 +22,7 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true,          // ✅ prevent duplicates
+      unique: true,
       lowercase: true,
       trim: true
     },
@@ -33,7 +31,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       minlength: 6,
-      select: false          // ✅ hide by default
+      select: false
     },
 
     role: {
@@ -108,7 +106,6 @@ const userSchema = new mongoose.Schema(
 );
 
 
-// Clean role-specific fields before saving
 userSchema.pre("save", function (next) {
   if (this.role === "recruiter" || this.role === "admin") {
     this.skills = undefined;
@@ -121,7 +118,6 @@ userSchema.pre("save", function (next) {
   next();
 });
 
-// 🔐 Hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 

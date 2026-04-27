@@ -22,12 +22,10 @@ function ProtectedRoute({ roles = [] }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Admin ONLY /admin
   if (user.role === "admin" && !location.pathname.startsWith("/admin")) {
     return <Navigate to="/admin" replace />;
   }
 
-  // Role restriction
   if (roles.length > 0 && !roles.includes(user.role)) {
     if (user.role === "admin") {
       return <Navigate to="/admin" replace />;

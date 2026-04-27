@@ -228,7 +228,6 @@ function AdminDashboard() {
         </button>
       </div>
 
-      {/* Tab Navigation */}
       <div className="mb-6 flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
         {TABS.map((tab) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
@@ -330,7 +329,6 @@ function AdminDashboard() {
         </>
       )}
 
-      {/* Invite Recruiter Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl">

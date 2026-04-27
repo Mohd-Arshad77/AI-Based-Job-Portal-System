@@ -90,7 +90,7 @@ function Navbar() {
       ? "/recruiter/dashboard" 
       : "/dashboard";
 
-  // Admin gets a minimal navbar — no links, no notifications
+
   if (user?.role === "admin") {
     return (
       <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-md">

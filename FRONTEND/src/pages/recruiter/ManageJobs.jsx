@@ -240,13 +240,12 @@ const handleScheduleInterview = async () => {
     if (!application) return null;
     const { user } = application;
     
-    // Get base URL for resume by removing /api from the end
+
     const resumeFullUrl = user?.resumeUrl ? `${SOCKET_URL}${user.resumeUrl}` : null;
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
         <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[24px] shadow-2xl animate-in zoom-in-95 duration-200">
-          {/* Header */}
           <div className="sticky top-0 bg-white/80 backdrop-blur-md z-10 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-800">Candidate Profile</h2>
             <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
@@ -255,7 +254,6 @@ const handleScheduleInterview = async () => {
           </div>
 
           <div className="p-6 md:p-8 space-y-8">
-            {/* Header Info */}
             <div className="flex items-start gap-5">
               <div className="w-20 h-20 rounded-[20px] bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg shadow-indigo-100">
                 {user?.name?.charAt(0) || "U"}
@@ -271,7 +269,6 @@ const handleScheduleInterview = async () => {
               </div>
             </div>
 
-            {/* Contact & Location */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-slate-600">
@@ -295,7 +292,6 @@ const handleScheduleInterview = async () => {
               </div>
             </div>
 
-            {/* Education */}
             <div className="space-y-3">
               <h4 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">
                 <GraduationCap className="w-3.5 h-3.5" /> Education
@@ -303,7 +299,6 @@ const handleScheduleInterview = async () => {
               <p className="text-slate-700 text-sm leading-relaxed">{user?.education || "No education details provided."}</p>
             </div>
 
-            {/* Skills */}
             <div className="space-y-3">
               <h4 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">
                 <Code className="w-3.5 h-3.5" /> Skills & Expertise
@@ -321,7 +316,6 @@ const handleScheduleInterview = async () => {
               </div>
             </div>
 
-            {/* Resume Section */}
             <div className="space-y-3 pt-2">
               <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Resume</h4>
               {resumeFullUrl ? (
@@ -349,7 +343,6 @@ const handleScheduleInterview = async () => {
               )}
             </div>
 
-            {/* Status Update Interaction */}
             <div className="pt-6 border-t border-slate-100">
               <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">Application Status</h4>
               <div className="flex flex-wrap gap-2">

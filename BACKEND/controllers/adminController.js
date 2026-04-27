@@ -5,7 +5,6 @@ import asyncHandler from "../utils/asyncHandler.js";
 import sendEmail from "../utils/sendEmail.js";
 import crypto from "crypto";
 
-// ─── Dashboard Stats ───────────────────────────────────────────────
 export const getDashboardStats = asyncHandler(async (req, res) => {
   const [totalUsers, totalRecruiters, totalJobs, activeJobs, totalApplications] = await Promise.all([
     User.countDocuments({ role: "user" }),
@@ -24,7 +23,6 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   });
 });
 
-// ─── Get Users (role = "user") ─────────────────────────────────────
 export const getUsers = asyncHandler(async (req, res) => {
   const users = await User.find({ role: "user" })
     .select("name email isBlocked createdAt")
@@ -34,7 +32,6 @@ export const getUsers = asyncHandler(async (req, res) => {
   res.json(users);
 });
 
-// ─── Get Recruiters (role = "recruiter") ───────────────────────────
 export const getRecruiters = asyncHandler(async (req, res) => {
   const recruiters = await User.find({ role: "recruiter" })
     .select("name email company isBlocked isVerified createdAt")
@@ -44,7 +41,6 @@ export const getRecruiters = asyncHandler(async (req, res) => {
   res.json(recruiters);
 });
 
-// ─── Toggle Block/Unblock User ─────────────────────────────────────
 export const toggleBlockUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
@@ -67,7 +63,6 @@ export const toggleBlockUser = asyncHandler(async (req, res) => {
   });
 });
 
-// ─── Delete User ───────────────────────────────────────────────────
 export const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
@@ -94,7 +89,6 @@ export const deleteUser = asyncHandler(async (req, res) => {
   res.json({ message: "User deleted successfully" });
 });
 
-// ─── Get All Jobs ──────────────────────────────────────────────────
 export const getJobs = asyncHandler(async (req, res) => {
   const jobs = await Job.find({})
     .populate("createdBy", "name email")
@@ -106,7 +100,6 @@ export const getJobs = asyncHandler(async (req, res) => {
   res.json(jobs);
 });
 
-// ─── Toggle Block/Unblock Job ──────────────────────────────────────
 export const toggleBlockJob = asyncHandler(async (req, res) => {
   const job = await Job.findById(req.params.id);
 
@@ -135,7 +128,6 @@ export const toggleBlockJob = asyncHandler(async (req, res) => {
   });
 });
 
-// ─── Delete Job ────────────────────────────────────────────────────
 export const deleteJob = asyncHandler(async (req, res) => {
   const job = await Job.findById(req.params.id);
 
@@ -150,7 +142,6 @@ export const deleteJob = asyncHandler(async (req, res) => {
   res.json({ message: "Job deleted successfully" });
 });
 
-// ─── Invite Recruiter ──────────────────────────────────────────────
 export const inviteRecruiter = asyncHandler(async (req, res) => {
   const { name, email, company } = req.body;
   

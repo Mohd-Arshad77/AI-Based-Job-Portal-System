@@ -101,7 +101,6 @@ function Register() {
     <div className="relative flex h-screen w-screen items-center justify-center bg-[#F3F5F9] p-4 lg:p-8 font-sans selection:bg-indigo-200 overflow-hidden">
       <div className="relative flex w-full max-w-[800px] h-[520px] overflow-hidden rounded-[20px] bg-white shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] flex-row z-10">
 
-        {/* Left Side Section */}
         <div className="hidden relative w-[45%] bg-[#7D66FD] p-10 text-white lg:flex flex-col justify-center overflow-hidden">
           <div className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none">
             <img
@@ -119,14 +118,12 @@ function Register() {
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#7D66FD]/80 to-transparent pointer-events-none"></div>
         </div>
 
-        {/* Diagonal Design */}
         <div className="hidden lg:block absolute top-0 bottom-0 left-[45%] w-[100px] h-full z-20 pointer-events-none transform -translate-x-[50px]">
           <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
             <path d="M100 0 H50 C120 20 20 60 50 100 H100 Z" fill="white" />
           </svg>
         </div>
 
-        {/* Right Side Form */}
         <div className="relative w-full lg:w-[55%] bg-white p-8 lg:px-10 flex flex-col z-10 h-full overflow-hidden">
           <div className="flex-1 flex flex-col justify-center max-w-[300px] mx-auto w-full">
 

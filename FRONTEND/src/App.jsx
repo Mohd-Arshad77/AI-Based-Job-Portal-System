@@ -41,13 +41,11 @@ function App() {
 
       <Routes>
 
-        {/* PUBLIC ROUTES */}
         <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
         <Route path="/verify-recruiter" element={<PublicRoute><VerifyRecruiter /></PublicRoute>} />
 
-        {/* USER ROUTES */}
         <Route element={<ProtectedRoute roles={["user"]} />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/jobs" element={<Jobs />} />
@@ -57,17 +55,14 @@ function App() {
           <Route path="/resume" element={<ResumeUpload />} />
         </Route>
 
-        {/* RECRUITER ROUTES */}
         <Route element={<ProtectedRoute roles={["recruiter"]} />}>
           <Route path="/recruiter/manage" element={<ManageJobs />} />
         </Route>
 
-        {/* ADMIN ROUTES */}
         <Route element={<ProtectedRoute roles={["admin"]} />}>
           <Route path="/admin" element={<AdminDashboard />} />
         </Route>
 
-        {/* NOT FOUND */}
         <Route path="*" element={<NotFound />} />
 
       </Routes>
