@@ -4,7 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import { X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : "http://localhost:5000";
+// const SOCKET_URL = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : "";
+const SOCKET_URL = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/api$/, "")
+  : "";
 
 export default function NotificationToast() {
   const { user } = useAuth();
@@ -13,7 +16,7 @@ export default function NotificationToast() {
   useEffect(() => {
     if (user && user._id) {
       const socket = io(SOCKET_URL);
-      
+
       socket.on("connect", () => {
         socket.emit("register_user", user._id);
       });
@@ -55,7 +58,7 @@ export default function NotificationToast() {
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-800">{toast.message}</p>
             </div>
-            <button 
+            <button
               onClick={() => setToasts(t => t.filter(x => x.id !== toast.id))}
               className="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors mt-0.5"
             >
