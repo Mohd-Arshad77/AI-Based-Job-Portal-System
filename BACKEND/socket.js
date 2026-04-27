@@ -1,17 +1,30 @@
 import { Server } from "socket.io";
 import http from "http";
 import express from "express";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173,http://localhost:5174")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: (process.env.CLIENT_ORIGINS || "http://localhost:5173,http://localhost:5174").split(",").map(o => o.trim()),
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true
   },
+  transports: ["websocket", "polling"],
 });
 
-const userSocketMap = {}; 
+console.log("[Socket.io] Allowed origins:", allowedOrigins);
+
+const userSocketMap = {};
 
 export const getReceiverSocketId = (userId) => {
   return userSocketMap[userId];

@@ -23,6 +23,8 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173,htt
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+console.log("[CORS] Allowed origins:", allowedOrigins);
+
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -3,14 +3,7 @@ import { io } from "socket.io-client";
 import { useAuth } from "../context/AuthContext";
 import { X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-
-// const SOCKET_URL = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : "";
-const SOCKET_URL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace("/api", "")
-  : "";
-
-const socket = io(SOCKET_URL);
-
+import { SOCKET_URL } from "../config.js";
 
 export default function NotificationToast() {
   const { user } = useAuth();
@@ -18,7 +11,10 @@ export default function NotificationToast() {
 
   useEffect(() => {
     if (user && user._id) {
-      const socket = io(SOCKET_URL);
+      const socket = io(SOCKET_URL, {
+        transports: ["websocket", "polling"],
+        withCredentials: true
+      });
 
       socket.on("connect", () => {
         socket.emit("register_user", user._id);

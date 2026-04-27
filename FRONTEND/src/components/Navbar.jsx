@@ -4,8 +4,7 @@ import { ArrowRight, BriefcaseBusiness, LogOut, User, Bell } from "lucide-react"
 import { useAuth } from "../context/AuthContext.jsx";
 import { notificationApi } from "../services/api.js";
 import { io } from "socket.io-client";
-
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : "http://localhost:5000";
+import { SOCKET_URL } from "../config.js";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -35,7 +34,10 @@ function Navbar() {
       
       fetchNotifications();
 
-      const socket = io(SOCKET_URL);
+      const socket = io(SOCKET_URL, {
+        transports: ["websocket", "polling"],
+        withCredentials: true
+      });
       
       socket.on("connect", () => {
         socket.emit("register_user", user._id);
