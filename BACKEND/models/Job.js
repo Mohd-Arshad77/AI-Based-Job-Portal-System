@@ -11,7 +11,8 @@ const jobSchema = new mongoose.Schema(
     description: { type: String, required: [true, "Description is required"] },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     isActive: { type: Boolean, default: true },
-    isApproved: { type: Boolean, default: false }
+    isApproved: { type: Boolean, default: false },
+    status: { type: String, enum: ["active", "blocked"], default: "active" }
   },
   { timestamps: true }
 );

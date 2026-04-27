@@ -123,6 +123,10 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid email or password" });
   }
 
+  if (user.isBlocked) {
+    return res.status(403).json({ message: "Your account has been blocked. Contact admin." });
+  }
+
   if (user.isVerified === false) {
      return res.status(403).json({ 
         message: "Your account is not verified. Please check your email for the OTP.",
@@ -206,6 +210,10 @@ export const googleAuth = asyncHandler(async (req, res) => {
   let user = await User.findOne({ email: normalizedEmail });
 
   if (user) {
+    if (user.isBlocked) {
+      return res.status(403).json({ message: "Your account has been blocked. Contact admin." });
+    }
+
     if (!user.isVerified) {
       user.isVerified = true;
       user.verificationCode = undefined;

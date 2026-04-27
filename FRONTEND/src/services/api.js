@@ -66,14 +66,14 @@ export const interviewApi = {
 
 export const adminApi = {
   getStats: () => api.get("/admin/stats"),
-  inviteRecruiter: (data) =>
-    api.post("/admin/invite-recruiter", data),
+  inviteRecruiter: (data) => api.post("/admin/invite-recruiter", data),
   getUsers: () => api.get("/admin/users"),
-  toggleUserBlock: (id) => api.put(`/admin/user/block/${id}`),
+  getRecruiters: () => api.get("/admin/recruiters"),
+  toggleBlockUser: (id) => api.patch(`/admin/user/block/${id}`),
   deleteUser: (id) => api.delete(`/admin/user/${id}`),
   getJobs: () => api.get("/admin/jobs"),
-  toggleJobDisable: (id) => api.put(`/admin/job/disable/${id}`),
-  deleteJob: (id) => api.delete(`/admin/job/${id}`)
+  toggleBlockJob: (id) => api.patch(`/admin/job/block/${id}`),
+  deleteJob: (id) => api.delete(`/admin/job/${id}`),
 };
 
 export const recruiterApi = {

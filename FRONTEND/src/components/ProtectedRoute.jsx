@@ -6,6 +6,10 @@ function ProtectedRoute({ roles = [] }) {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
+  console.log("USER:", user);
+  console.log("LOADING:", loading);
+  console.log("PATH:", location.pathname);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -18,21 +22,24 @@ function ProtectedRoute({ roles = [] }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (roles.length > 0 && !roles.includes(user.role)) {
+  // Admin ONLY /admin
+  if (user.role === "admin" && !location.pathname.startsWith("/admin")) {
+    return <Navigate to="/admin" replace />;
+  }
 
+  // Role restriction
+  if (roles.length > 0 && !roles.includes(user.role)) {
     if (user.role === "admin") {
       return <Navigate to="/admin" replace />;
     }
-
     if (user.role === "recruiter") {
-      return <Navigate to="/recruiter" replace />;
+      return <Navigate to="/recruiter/manage" replace />;
     }
-
     if (user.role === "user") {
-      return <Navigate to="/home" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
 
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;

@@ -80,6 +80,7 @@ export const getJobs = asyncHandler(async (req, res) => {
   } else {
     filters.isActive = true;
     filters.isApproved = true;
+    filters.status = { $ne: "blocked" };
   }
 
   const jobs = await Job.find(filters)

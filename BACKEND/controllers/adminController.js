@@ -5,11 +5,13 @@ import asyncHandler from "../utils/asyncHandler.js";
 import sendEmail from "../utils/sendEmail.js";
 import crypto from "crypto";
 
+// ─── Dashboard Stats ───────────────────────────────────────────────
 export const getDashboardStats = asyncHandler(async (req, res) => {
-  const [totalUsers, totalRecruiters, totalJobs, totalApplications] = await Promise.all([
+  const [totalUsers, totalRecruiters, totalJobs, activeJobs, totalApplications] = await Promise.all([
     User.countDocuments({ role: "user" }),
     User.countDocuments({ role: "recruiter" }),
     Job.countDocuments({}),
+    Job.countDocuments({ isActive: true, status: { $ne: "blocked" } }),
     Application.countDocuments({})
   ]);
 
@@ -17,10 +19,137 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     totalUsers: totalUsers || 0,
     totalRecruiters: totalRecruiters || 0,
     totalJobs: totalJobs || 0,
+    activeJobs: activeJobs || 0,
     totalApplications: totalApplications || 0,
   });
-}); 
+});
 
+// ─── Get Users (role = "user") ─────────────────────────────────────
+export const getUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({ role: "user" })
+    .select("name email isBlocked createdAt")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  res.json(users);
+});
+
+// ─── Get Recruiters (role = "recruiter") ───────────────────────────
+export const getRecruiters = asyncHandler(async (req, res) => {
+  const recruiters = await User.find({ role: "recruiter" })
+    .select("name email company isBlocked isVerified createdAt")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  res.json(recruiters);
+});
+
+// ─── Toggle Block/Unblock User ─────────────────────────────────────
+export const toggleBlockUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found.");
+  }
+
+  if (user.role === "admin") {
+    res.status(400);
+    throw new Error("Cannot block an admin account.");
+  }
+
+  user.isBlocked = !user.isBlocked;
+  await user.save();
+
+  res.json({
+    message: user.isBlocked ? "User blocked successfully" : "User unblocked successfully",
+    isBlocked: user.isBlocked
+  });
+});
+
+// ─── Delete User ───────────────────────────────────────────────────
+export const deleteUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found.");
+  }
+
+  if (user.role === "admin") {
+    res.status(400);
+    throw new Error("Cannot delete an admin account.");
+  }
+
+  await Application.deleteMany({ user: user._id });
+
+  if (user.role === "recruiter") {
+    const jobIds = await Job.find({ createdBy: user._id }).distinct("_id");
+    await Application.deleteMany({ job: { $in: jobIds } });
+    await Job.deleteMany({ createdBy: user._id });
+  }
+
+  await User.findByIdAndDelete(user._id);
+
+  res.json({ message: "User deleted successfully" });
+});
+
+// ─── Get All Jobs ──────────────────────────────────────────────────
+export const getJobs = asyncHandler(async (req, res) => {
+  const jobs = await Job.find({})
+    .select("title company status isActive createdAt")
+    .populate("createdBy", "name email")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  res.json(jobs);
+});
+
+// ─── Toggle Block/Unblock Job ──────────────────────────────────────
+export const toggleBlockJob = asyncHandler(async (req, res) => {
+  const job = await Job.findById(req.params.id);
+
+  if (!job) {
+    res.status(404);
+    throw new Error("Job not found.");
+  }
+
+  if (job.status === "blocked") {
+    job.status = "active";
+    job.isActive = true;
+  } else {
+    job.status = "blocked";
+    job.isActive = false;
+  }
+
+  await job.save();
+
+  console.log("Job status:", job.status);
+  console.log("isActive:", job.isActive);
+
+  res.json({
+    message: job.status === "active" ? "Job unblocked successfully" : "Job blocked successfully",
+    status: job.status,
+    isActive: job.isActive
+  });
+});
+
+// ─── Delete Job ────────────────────────────────────────────────────
+export const deleteJob = asyncHandler(async (req, res) => {
+  const job = await Job.findById(req.params.id);
+
+  if (!job) {
+    res.status(404);
+    throw new Error("Job not found.");
+  }
+
+  await Application.deleteMany({ job: job._id });
+  await Job.findByIdAndDelete(job._id);
+
+  res.json({ message: "Job deleted successfully" });
+});
+
+// ─── Invite Recruiter ──────────────────────────────────────────────
 export const inviteRecruiter = asyncHandler(async (req, res) => {
   const { name, email, company } = req.body;
   
@@ -87,56 +216,4 @@ export const inviteRecruiter = asyncHandler(async (req, res) => {
     success: true,
     message: "Recruiter invited successfully",
   });
-});
-
-export const getAllUsers = asyncHandler(async (req, res) => {
-  console.log("Admin requesting all users:", req.user);
-  const users = await User.find();
-  res.json({ success: true, data: users });
-});
-
-export const toggleUserBlock = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id);
-  if (!user) {
-    res.status(404);
-    throw new Error("User not found");
-  }
-  user.isBlocked = !user.isBlocked;
-  await user.save();
-  res.json({ success: true, message: `User ${user.isBlocked ? "blocked" : "unblocked"} successfully` });
-});
-
-export const deleteUser = asyncHandler(async (req, res) => {
-  const user = await User.findByIdAndDelete(req.params.id);
-  if (!user) {
-    res.status(404);
-    throw new Error("User not found");
-  }
-  res.json({ success: true, message: "User deleted successfully" });
-});
-
-export const getAllJobs = asyncHandler(async (req, res) => {
-  console.log("Admin requesting all jobs:", req.user);
-  const jobs = await Job.find().populate("createdBy", "name email");
-  res.json({ success: true, data: jobs });
-});
-
-export const toggleJobDisable = asyncHandler(async (req, res) => {
-  const job = await Job.findById(req.params.id);
-  if (!job) {
-    res.status(404);
-    throw new Error("Job not found");
-  }
-  job.isActive = !job.isActive;
-  await job.save();
-  res.json({ success: true, message: `Job ${job.isActive ? "enabled" : "disabled"} successfully` });
-});
-
-export const deleteJob = asyncHandler(async (req, res) => {
-  const job = await Job.findByIdAndDelete(req.params.id);
-  if (!job) {
-    res.status(404);
-    throw new Error("Job not found");
-  }
-  res.json({ success: true, message: "Job deleted successfully" });
 });

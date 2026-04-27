@@ -1,30 +1,37 @@
 import express from "express";
-import { 
-  getDashboardStats, 
+import {
+  getDashboardStats,
   inviteRecruiter,
-  getAllUsers,
-  toggleUserBlock,
+  getUsers,
+  getRecruiters,
+  toggleBlockUser,
   deleteUser,
-  getAllJobs,
-  toggleJobDisable,
+  getJobs,
+  toggleBlockJob,
   deleteJob
-} from "../controllers/adminController.js"; 
+} from "../controllers/adminController.js";
 import { authorizeRoles, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/stats", protect, authorizeRoles("admin"), getDashboardStats);
+// All routes require admin authentication
+router.use(protect, authorizeRoles("admin"));
 
-router.post("/invite-recruiter", protect, authorizeRoles("admin"), inviteRecruiter);
+// Dashboard
+router.get("/stats", getDashboardStats);
 
-// User Management Routes
-router.get("/users", protect, authorizeRoles("admin"), getAllUsers);
-router.put("/user/block/:id", protect, authorizeRoles("admin"), toggleUserBlock);
-router.delete("/user/:id", protect, authorizeRoles("admin"), deleteUser);
+// User management
+router.get("/users", getUsers);
+router.get("/recruiters", getRecruiters);
+router.patch("/user/block/:id", toggleBlockUser);
+router.delete("/user/:id", deleteUser);
 
-// Job Management Routes
-router.get("/jobs", protect, authorizeRoles("admin"), getAllJobs);
-router.put("/job/disable/:id", protect, authorizeRoles("admin"), toggleJobDisable);
-router.delete("/job/:id", protect, authorizeRoles("admin"), deleteJob);
+// Job management
+router.get("/jobs", getJobs);
+router.patch("/job/block/:id", toggleBlockJob);
+router.delete("/job/:id", deleteJob);
+
+// Recruiter invitation
+router.post("/invite-recruiter", inviteRecruiter);
 
 export default router;

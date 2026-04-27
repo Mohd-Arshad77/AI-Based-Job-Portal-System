@@ -32,10 +32,18 @@ export const protect = asyncHandler(async (req, res, next) => {
       throw new Error("User not found.");
     }
 
+    if (user.isBlocked) {
+      res.status(403);
+      throw new Error("Your account has been blocked. Contact admin.");
+    }
+
     req.user = user;
 
     next();
   } catch (error) {
+    if (error.message === "Your account has been blocked. Contact admin.") {
+      throw error;
+    }
     res.status(401);
     throw new Error("Not authorized. Invalid or expired token.");
   }

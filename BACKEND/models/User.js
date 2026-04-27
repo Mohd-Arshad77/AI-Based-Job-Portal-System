@@ -66,6 +66,11 @@ const userSchema = new mongoose.Schema(
       default: false
     },
 
+    isBlocked: {
+      type: Boolean,
+      default: false
+    },
+
     verificationCode: String,
 
     skills: {
