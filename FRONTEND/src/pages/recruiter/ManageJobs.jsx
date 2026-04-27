@@ -3,6 +3,7 @@ import { Calendar, CheckCircle2, Clock3, FileText, MapPin, MoreVertical, PencilL
 import Layout from "../../components/Layout.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { applicationsApi, interviewApi, jobsApi } from "../../services/api.js";
+import { SOCKET_URL } from "../../config.js";
 
 import CreateJob from "./CreateJob.jsx";
 import InterviewsTab from "./InterviewsTab.jsx";
@@ -240,8 +241,7 @@ const handleScheduleInterview = async () => {
     const { user } = application;
     
     // Get base URL for resume by removing /api from the end
-    const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
-    const resumeFullUrl = user?.resumeUrl ? `${API_URL}${user.resumeUrl}` : null;
+    const resumeFullUrl = user?.resumeUrl ? `${SOCKET_URL}${user.resumeUrl}` : null;
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
