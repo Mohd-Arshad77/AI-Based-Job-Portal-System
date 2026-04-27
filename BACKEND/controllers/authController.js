@@ -23,10 +23,11 @@ const sanitizeUser = (user) => {
 };
 
 const getCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === "production";
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax"
+    secure: isProd,           // HTTPS only in production
+    sameSite: isProd ? "none" : "lax"  // "none" required for cross-origin (Vercel↔Render)
   };
 };
 
