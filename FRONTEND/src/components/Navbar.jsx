@@ -166,8 +166,8 @@ function Navbar() {
 
             {user?.role === "user" && (
               <>
-                <NavLink to="/profile" className={({ isActive }) => `text-sm transition-all hover:text-indigo-950 ${isActive ? "font-semibold text-indigo-900 border-b-2 border-indigo-600 py-1" : "font-medium text-slate-500 py-1"}`}>
-                  Profile
+                <NavLink to="/" className={({ isActive }) => `text-sm transition-all hover:text-indigo-950 ${isActive ? "font-semibold text-indigo-900 border-b-2 border-indigo-600 py-1" : "font-medium text-slate-500 py-1"}`}>
+                  Home
                 </NavLink>
                 <NavLink to="/jobs" className={({ isActive }) => `text-sm transition-all hover:text-indigo-950 ${isActive ? "font-semibold text-indigo-900 border-b-2 border-indigo-600 py-1" : "font-medium text-slate-500 py-1"}`}>
                   Jobs
