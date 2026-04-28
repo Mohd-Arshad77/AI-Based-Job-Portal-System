@@ -5,22 +5,56 @@ import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
 
-const sanitizeUser = (user) => {
-  return {
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    location: user.location,
-    role: user.role,
-    skills: user.skills,
-    experience: user.experience,
-    education: user.education,
-    resumeUrl: user.resumeUrl,
-    resumeUpdatedAt: user.resumeUpdatedAt,
-    parsedData: user.parsedData
-  };
-};
+const sanitizeUser = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role
+});
+// ================= GOOGLE AUTH =================
+export const googleAuth = asyncHandler(async (req, res) => {
+  const { credential } = req.body;
+
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+  const ticket = await client.verifyIdToken({
+    idToken: credential,
+    audience: process.env.GOOGLE_CLIENT_ID
+  });
+
+  const { email, name } = ticket.getPayload();
+  const normalizedEmail = email.toLowerCase().trim();
+
+  let user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) {
+    const randomPassword = crypto.randomBytes(16).toString("hex");
+    const hashedPassword = await User.hashPassword(randomPassword);
+
+    user = await User.create({
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: "user",
+      isVerified: true
+    });
+  }
+
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  res.cookie("accessToken", accessToken, { httpOnly: true });
+  res.cookie("refreshToken", refreshToken, { httpOnly: true });
+
+  res.json({
+    success: true,
+    token: accessToken,
+    user: sanitizeUser(user)
+  });
+});
 
 const getCookieOptions = () => {
   const isProd = process.env.NODE_ENV === "production";
@@ -31,11 +65,9 @@ const getCookieOptions = () => {
   };
 };
 
-
-
 // ================= REGISTER =================
 export const register = asyncHandler(async (req, res) => {
-  const { name, email, password, skills, experience, education } = req.body;
+  const { name, email, password } = req.body;
 
   const normalizedEmail = email.toLowerCase().trim();
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -49,59 +81,49 @@ export const register = asyncHandler(async (req, res) => {
 
       await sendEmail({
         email: existingUser.email,
-        subject: "Verify Your Account - OTP",
-        html: `<h2>Your OTP: ${otp}</h2>`
+        subject: "OTP",
+        html: `<h2>${otp}</h2>`
       });
 
       return res.json({
         success: true,
-        message: "OTP sent successfully",
         requiresOTP: true,
         email: existingUser.email
       });
-    } else {
-      return res.status(400).json({ message: "Account already exists" });
     }
+
+    return res.status(400).json({ message: "User already exists" });
   }
 
-  // 🔥 FIX: HASH PASSWORD
   const hashedPassword = await User.hashPassword(password);
 
   const user = await User.create({
     name,
     email: normalizedEmail,
-    password: hashedPassword, // ✅ FIXED
+    password: hashedPassword,
     role: "user",
     isVerified: false,
-    verificationCode: otp,
-    skills: skills || [],
-    experience: experience || "",
-    education: education || ""
+    verificationCode: otp
   });
 
   await sendEmail({
     email: user.email,
-    subject: "Verify Your Account - OTP",
-    html: `<h2>Your OTP: ${otp}</h2>`
+    subject: "OTP",
+    html: `<h2>${otp}</h2>`
   });
 
-  return res.status(201).json({
+  res.json({
     success: true,
-    message: "Registered successfully",
     requiresOTP: true,
     email: user.email
   });
 });
 
-
-
-// ================= VERIFY OTP =================
 export const verifyUserOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
-  const normalizedEmail = email.toLowerCase().trim();
 
   const user = await User.findOne({
-    email: normalizedEmail,
+    email: email.toLowerCase().trim(),
     verificationCode: otp
   });
 
@@ -114,35 +136,42 @@ export const verifyUserOTP = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  res.json({ success: true, message: "OTP verified successfully" });
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  res.cookie("accessToken", accessToken, { httpOnly: true });
+  res.cookie("refreshToken", refreshToken, { httpOnly: true });
+
+  res.json({
+    success: true,
+    token: accessToken,
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  });
 });
-
-
 
 // ================= LOGIN =================
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await User.findOne({ email: normalizedEmail }).select("+password");
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+password");
 
-  if (!user) {
-    return res.status(401).json({ message: "User not found" });
-  }
+  if (!user) return res.status(401).json({ message: "User not found" });
 
-  const isMatch = await User.comparePassword(password, user.password);
+  const match = await User.comparePassword(password, user.password);
 
-  if (!isMatch) {
-    return res.status(401).json({ message: "Invalid email or password" });
-  }
-
-  if (user.isBlocked) {
-    return res.status(403).json({ message: "Your account is blocked" });
-  }
+  if (!match) return res.status(401).json({ message: "Invalid credentials" });
 
   if (!user.isVerified) {
     return res.status(403).json({
-      message: "Please verify OTP first",
+      message: "Verify OTP first",
       requiresOTP: true,
       email: user.email
     });
@@ -164,78 +193,20 @@ export const login = asyncHandler(async (req, res) => {
   });
 });
 
-
-
 // ================= LOGOUT =================
 export const logout = asyncHandler(async (req, res) => {
-  const refreshToken = req.cookies?.refreshToken;
+  const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (refreshToken) {
-    const user = await User.findOne({ refreshToken });
-    if (user) {
-      user.refreshToken = null;
-      await user.save();
-    }
+    await User.findOneAndUpdate({ refreshToken }, { $set: { refreshToken: null } });
   }
 
-  res.clearCookie("accessToken", getCookieOptions());
-  res.clearCookie("refreshToken", getCookieOptions());
-
-  res.json({ message: "Logout successful" });
-});
-
-
-
-// ================= GOOGLE AUTH =================
-export const googleAuth = asyncHandler(async (req, res) => {
-  const { credential } = req.body;
-  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-  const ticket = await client.verifyIdToken({
-    idToken: credential,
-    audience: process.env.GOOGLE_CLIENT_ID
-  });
-
-  const { email, name } = ticket.getPayload();
-  const normalizedEmail = email.toLowerCase().trim();
-
-  let user = await User.findOne({ email: normalizedEmail });
-
-  if (user) {
-    if (user.isBlocked) {
-      return res.status(403).json({ message: "Account blocked" });
-    }
-
-    if (!user.isVerified) {
-      user.isVerified = true;
-      user.verificationCode = undefined;
-      await user.save();
-    }
-  } else {
-    const randomPassword = crypto.randomBytes(16).toString("hex");
-    const hashedPassword = await User.hashPassword(randomPassword);
-
-    user = await User.create({
-      name,
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: "user",
-      isVerified: true
-    });
-  }
-
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
-
-  user.refreshToken = refreshToken;
-  await user.save();
-
-  res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
-  res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });
+  const cookieOptions = getCookieOptions();
+  res.clearCookie("accessToken", cookieOptions);
+  res.clearCookie("refreshToken", cookieOptions);
 
   res.json({
     success: true,
-    token: accessToken,
-    user: sanitizeUser(user)
+    message: "Logged out successfully"
   });
 });

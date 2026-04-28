@@ -75,15 +75,15 @@ export const AuthProvider = ({ children }) => {
       console.log(error.message)
     }
   };
-
-  // ================= VERIFY OTP (FIXED) =================
   const verifyOtp = async (values) => {
     setLoading(true);
     try {
       const { data } = await authApi.verifyOtp(values);
 
-      // 🔥 FIX: no applySession here
-      return { success: true };
+      // ✅ LOGIN USER AFTER OTP
+      const nextUser = applySession(data);
+
+      return { success: true, user: nextUser };
     } catch (error) {
       return {
         success: false,
