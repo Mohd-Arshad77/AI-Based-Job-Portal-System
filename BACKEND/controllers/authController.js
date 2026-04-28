@@ -31,16 +31,19 @@ const getCookieOptions = () => {
   };
 };
 
+
+
+// ================= REGISTER =================
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, skills, experience, education } = req.body;
-  
+
   const normalizedEmail = email.toLowerCase().trim();
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   const existingUser = await User.findOne({ email: normalizedEmail });
 
   if (existingUser) {
-    if (existingUser.isVerified === false) {
+    if (!existingUser.isVerified) {
       existingUser.verificationCode = otp;
       await existingUser.save();
 
@@ -50,17 +53,24 @@ export const register = asyncHandler(async (req, res) => {
         html: `<h2>Your OTP: ${otp}</h2>`
       });
 
-      return res.json({ success: true, requiresOTP: true, email: existingUser.email });
+      return res.json({
+        success: true,
+        message: "OTP sent successfully",
+        requiresOTP: true,
+        email: existingUser.email
+      });
     } else {
-      res.status(400);
-      throw new Error("Account already exists");
+      return res.status(400).json({ message: "Account already exists" });
     }
   }
 
+  // 🔥 FIX: HASH PASSWORD
+  const hashedPassword = await User.hashPassword(password);
+
   const user = await User.create({
-    name: name,
+    name,
     email: normalizedEmail,
-    password: password,
+    password: hashedPassword, // ✅ FIXED
     role: "user",
     isVerified: false,
     verificationCode: otp,
@@ -75,39 +85,41 @@ export const register = asyncHandler(async (req, res) => {
     html: `<h2>Your OTP: ${otp}</h2>`
   });
 
-  res.json({ success: true, requiresOTP: true, email: user.email });
+  return res.status(201).json({
+    success: true,
+    message: "Registered successfully",
+    requiresOTP: true,
+    email: user.email
+  });
 });
 
+
+
+// ================= VERIFY OTP =================
 export const verifyUserOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
   const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await User.findOne({ 
-    email: normalizedEmail, 
-    verificationCode: otp 
+  const user = await User.findOne({
+    email: normalizedEmail,
+    verificationCode: otp
   });
 
   if (!user) {
-    res.status(400);
-    throw new Error("Invalid OTP");
+    return res.status(400).json({ message: "Invalid OTP" });
   }
 
   user.isVerified = true;
   user.verificationCode = undefined;
+
   await user.save();
 
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
-
-  user.refreshToken = refreshToken;
-  await user.save();
-
-  res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
-  res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });
-
-  res.json({ success: true, token: accessToken, user: sanitizeUser(user) });
+  res.json({ success: true, message: "OTP verified successfully" });
 });
 
+
+
+// ================= LOGIN =================
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = email.toLowerCase().trim();
@@ -118,9 +130,6 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "User not found" });
   }
 
-  console.log("LOGIN USER:", user.email, "ROLE:", user.role);
-  console.log("BLOCK STATUS:", user.isBlocked);
-
   const isMatch = await User.comparePassword(password, user.password);
 
   if (!isMatch) {
@@ -128,15 +137,15 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (user.isBlocked) {
-    return res.status(403).json({ message: "Your account is blocked. Contact admin." });
+    return res.status(403).json({ message: "Your account is blocked" });
   }
 
-  if (user.isVerified === false) {
-     return res.status(403).json({ 
-        message: "Your account is not verified. Please check your email for the OTP.",
-        requiresOTP: true,
-        email: user.email
-     });
+  if (!user.isVerified) {
+    return res.status(403).json({
+      message: "Please verify OTP first",
+      requiresOTP: true,
+      email: user.email
+    });
   }
 
   const accessToken = generateAccessToken(user);
@@ -148,14 +157,21 @@ export const login = asyncHandler(async (req, res) => {
   res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
   res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });
 
-  res.json({ success: true, token: accessToken, user: sanitizeUser(user) });
+  res.json({
+    success: true,
+    token: accessToken,
+    user: sanitizeUser(user)
+  });
 });
 
+
+
+// ================= LOGOUT =================
 export const logout = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
 
   if (refreshToken) {
-    const user = await User.findOne({ refreshToken: refreshToken });
+    const user = await User.findOne({ refreshToken });
     if (user) {
       user.refreshToken = null;
       await user.save();
@@ -168,37 +184,9 @@ export const logout = asyncHandler(async (req, res) => {
   res.json({ message: "Logout successful" });
 });
 
-export const verifyRecruiter = asyncHandler(async (req, res) => {
-  const { email, verificationCode, newPassword } = req.body;
-  const normalizedEmail = email.toLowerCase().trim();
 
-  if (!newPassword || newPassword.length < 6) {
-    res.status(400);
-    throw new Error("Password must be at least 6 characters");
-  }
 
-  const user = await User.findOne({ 
-    email: normalizedEmail, 
-    role: "recruiter", 
-    verificationCode: verificationCode 
-  });
-
-  if (!user) {
-    res.status(400);
-    throw new Error("Invalid verification code");
-  }
-
-  const hashedPassword = await User.hashPassword(newPassword);
-  
-  user.password = hashedPassword;
-  user.isVerified = true;
-  user.verificationCode = undefined;
-  
-  await user.save();
-
-  res.json({ success: true });
-});
-
+// ================= GOOGLE AUTH =================
 export const googleAuth = asyncHandler(async (req, res) => {
   const { credential } = req.body;
   const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -215,7 +203,7 @@ export const googleAuth = asyncHandler(async (req, res) => {
 
   if (user) {
     if (user.isBlocked) {
-      return res.status(403).json({ message: "Your account has been blocked. Contact admin." });
+      return res.status(403).json({ message: "Account blocked" });
     }
 
     if (!user.isVerified) {
@@ -228,7 +216,7 @@ export const googleAuth = asyncHandler(async (req, res) => {
     const hashedPassword = await User.hashPassword(randomPassword);
 
     user = await User.create({
-      name: name,
+      name,
       email: normalizedEmail,
       password: hashedPassword,
       role: "user",
@@ -245,5 +233,9 @@ export const googleAuth = asyncHandler(async (req, res) => {
   res.cookie("accessToken", accessToken, { ...getCookieOptions(), maxAge: 86400000 });
   res.cookie("refreshToken", refreshToken, { ...getCookieOptions(), maxAge: 604800000 });
 
-  res.json({ success: true, token: accessToken, user: sanitizeUser(user) });
+  res.json({
+    success: true,
+    token: accessToken,
+    user: sanitizeUser(user)
+  });
 });

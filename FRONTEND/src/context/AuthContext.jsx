@@ -48,7 +48,8 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
-const login = async (values) => {
+  // ================= LOGIN =================
+  const login = async (values) => {
     setLoading(true);
     try {
       const { data } = await authApi.login(values);
@@ -65,31 +66,24 @@ const login = async (values) => {
     }
   };
 
+  // ================= REGISTER =================
   const register = async (values) => {
-    setLoading(true);
     try {
       const { data } = await authApi.register(values);
-      return {
-        success: true,
-        requiresOTP: data.requiresOTP,
-        email: data.email
-      };
+      return data;
     } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || "Registration failed"
-      };
-    } finally {
-      setLoading(false);
+      console.log(error.message)
     }
   };
 
+  // ================= VERIFY OTP (FIXED) =================
   const verifyOtp = async (values) => {
     setLoading(true);
     try {
       const { data } = await authApi.verifyOtp(values);
-      const nextUser = applySession(data);
-      return { success: true, user: nextUser };
+
+      // 🔥 FIX: no applySession here
+      return { success: true };
     } catch (error) {
       return {
         success: false,
@@ -100,11 +94,13 @@ const login = async (values) => {
     }
   };
 
+  // ================= GOOGLE =================
   const loginWithGoogle = async (credential) => {
     setLoading(true);
     try {
       const { data } = await authApi.googleAuth(credential);
       const nextUser = applySession(data);
+
       return { success: true, user: nextUser };
     } catch (error) {
       return {
@@ -116,10 +112,11 @@ const login = async (values) => {
     }
   };
 
+  // ================= LOGOUT =================
   const logout = async () => {
     try {
       await authApi.logout();
-    } catch {}
+    } catch { }
 
     setToken("");
     setUser(null);

@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { User, Lock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { GoogleLogin } from "@react-oauth/google";
 import toast from "react-hot-toast";
 
 const initialForm = { email: "", password: "" };
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const getHomePath = (user) => {
   if (user?.role === "admin") return "/admin";
@@ -20,7 +20,7 @@ function Login() {
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
-  
+
   useEffect(() => {
     if (isAuthenticated && user) {
       if (user.role === "admin") navigate("/admin");
@@ -29,13 +29,13 @@ function Login() {
     }
   }, [isAuthenticated, user, navigate]);
 
-const redirectAfterAuth = (userData) => {
+  const redirectAfterAuth = (userData) => {
     const actualUser = userData?.role ? userData : userData?.user;
     const role = actualUser?.role?.toLowerCase();
 
     if (role === "admin") {
       navigate("/admin", { replace: true });
-      return; 
+      return;
     }
 
     if (role === "recruiter") {
@@ -95,9 +95,33 @@ const redirectAfterAuth = (userData) => {
     }
   };
 
+  useEffect(() => {
+    console.log("CURRENT ORIGIN:", window.location.origin);
+    console.log("CLIENT ID:", GOOGLE_CLIENT_ID);
+
+    if (!window.google) return;
+    if (window.googleInitialized) return;
+
+    const googleBtn = document.getElementById("googleBtn");
+    if (!googleBtn) return;
+
+    window.googleInitialized = true;
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleSuccess
+    });
+
+    window.google.accounts.id.renderButton(googleBtn, {
+      theme: "outline",
+      size: "large",
+      text: "signin_with"
+    });
+  }, []);
+
   return (
     <div className="relative flex h-screen w-screen items-center justify-center bg-[#F3F5F9] p-4 lg:p-8 font-sans selection:bg-indigo-200 overflow-hidden">
-      
+
       <div className="relative flex w-full max-w-[800px] h-[520px] overflow-hidden rounded-[20px] bg-white shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] flex-row z-10">
 
         <div className="hidden relative w-[45%] bg-[#7D66FD] p-10 text-white lg:flex flex-col justify-center overflow-hidden">
@@ -116,14 +140,14 @@ const redirectAfterAuth = (userData) => {
         </div>
 
         <div className="hidden lg:block absolute top-0 bottom-0 left-[45%] w-[100px] h-full z-20 pointer-events-none transform -translate-x-[50px]">
-           <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-             <path d="M100 0 H50 C120 20 20 60 50 100 H100 Z" fill="white" />
-           </svg>
+          <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path d="M100 0 H50 C120 20 20 60 50 100 H100 Z" fill="white" />
+          </svg>
         </div>
 
         <div className="relative w-full lg:w-[55%] bg-white p-8 lg:px-10 flex flex-col z-10 h-full overflow-hidden">
           <div className="flex-1 flex flex-col justify-center max-w-[300px] mx-auto w-full">
-            
+
             <div className="mb-4 text-center lg:text-left">
               <h3 className="text-[#7D66FD] text-md font-medium mb-1 tracking-wide">Hello there!</h3>
               <h1 className="text-[#7D66FD] text-xl font-semibold">Welcome Back</h1>
@@ -176,13 +200,7 @@ const redirectAfterAuth = (userData) => {
                 </div>
               </div>
               <div className="mt-4 flex justify-center transform scale-90">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={() => setMessage("Google Login Failed.")}
-                  shape="rectangular"
-                  size="large"
-                  text="signin_with"
-                />
+                <div id="googleBtn"></div>
               </div>
             </div>
 
@@ -192,7 +210,7 @@ const redirectAfterAuth = (userData) => {
               </p>
               <Link to="#" className="text-[#7D66FD] hover:underline">Terms</Link>
             </div>
-            
+
           </div>
         </div>
       </div>
