@@ -22,6 +22,7 @@ function Login() {
       else navigate("/dashboard");
     }
   }, [isAuthenticated, user, navigate]);
+  console.log("My Client ID is:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
   const redirectAfterAuth = (userData) => {
     const actualUser = userData?.role ? userData : userData?.user;

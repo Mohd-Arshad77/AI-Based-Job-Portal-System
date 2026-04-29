@@ -18,11 +18,23 @@ const sanitizeUser = (user) => {
     skills: user.skills,
     experience: user.experience,
     education: user.education,
+    resume: user.resume || user.resumeUrl || "",
     resumeUrl: user.resumeUrl,
     resumeUpdatedAt: user.resumeUpdatedAt,
     parsedData: user.parsedData,
     createdAt: user.createdAt
   };
+};
+
+const normalizeSkills = (skills = []) => {
+  return Array.isArray(skills)
+    ? [...new Map(
+      skills
+        .map((skill) => String(skill).trim())
+        .filter(Boolean)
+        .map((skill) => [skill.toLowerCase(), skill])
+    ).values()]
+    : [];
 };
 
 const saveResumeFile = async (file, userId) => {
@@ -80,20 +92,29 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (name !== undefined) updates.name = name;
   if (phone !== undefined) updates.phone = phone;
   if (location !== undefined) updates.location = location;
-  if (experience !== undefined) updates.experience = experience;
+  if (experience !== undefined) {
+    const parsedExperience = experience === "" ? 0 : Number(experience);
+
+    if (Number.isNaN(parsedExperience)) {
+      res.status(400);
+      throw new Error("Experience must be a number.");
+    }
+
+    updates.experience = parsedExperience;
+  }
   if (education !== undefined) updates.education = education;
-  if (skills !== undefined) updates.skills = skills;
+  if (skills !== undefined) updates.skills = normalizeSkills(skills);
 
   const updatedUser = Object.keys(updates).length > 0
     ? await User.findByIdAndUpdate(req.user._id, updates, {
-        new: true,
-        runValidators: true
-      })
+      new: true,
+      runValidators: true
+    })
     : user;
 
-  res.json({ 
-    message: "Profile updated successfully", 
-    user: sanitizeUser(updatedUser) 
+  res.json({
+    message: "Profile updated successfully",
+    user: sanitizeUser(updatedUser)
   });
 });
 
@@ -101,6 +122,11 @@ export const uploadResume = asyncHandler(async (req, res) => {
   if (!req.file) {
     res.status(400);
     throw new Error("Resume file is required.");
+  }
+
+  if (req.file.mimetype !== "application/pdf") {
+    res.status(400);
+    throw new Error("Only PDF files are allowed.");
   }
 
   const user = await User.findById(req.user._id);
@@ -114,6 +140,7 @@ export const uploadResume = asyncHandler(async (req, res) => {
   const updatedUser = await User.findByIdAndUpdate(
     req.user._id,
     {
+      resume: resumeUrl,
       resumeUrl: resumeUrl,
       resumeUpdatedAt: new Date()
     },
@@ -123,8 +150,9 @@ export const uploadResume = asyncHandler(async (req, res) => {
     }
   );
 
-  res.json({ 
-    message: "Resume updated successfully", 
+  res.json({
+    message: "Resume updated successfully",
+    resume: updatedUser.resume || updatedUser.resumeUrl,
     resumeUrl: updatedUser.resumeUrl,
     user: sanitizeUser(updatedUser)
   });
@@ -135,7 +163,7 @@ export const getRecommendedJobs = asyncHandler(async (req, res) => {
     .select("skills parsedData experience")
     .lean();
 
-  if (!user) { 
+  if (!user) {
     res.status(404);
     throw new Error("User not found.");
   }

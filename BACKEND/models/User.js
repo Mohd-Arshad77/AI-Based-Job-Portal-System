@@ -18,7 +18,6 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
-
     email: {
       type: String,
       required: true,
@@ -26,60 +25,50 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true
     },
-
     password: {
       type: String,
       required: true,
       minlength: 6,
       select: false
     },
-
     role: {
       type: String,
       enum: ["user", "recruiter", "admin"],
       default: "user"
     },
-
-    isBlocked: {
-      type: Boolean,
-      default: false
-    },
-
     company: String,
-
     phone: {
       type: String,
       trim: true,
       default: ""
     },
-
     location: {
       type: String,
       trim: true,
       default: ""
     },
-
     isVerified: {
       type: Boolean,
       default: false
     },
-
     isBlocked: {
       type: Boolean,
       default: false
     },
-
     verificationCode: String,
-
     skills: {
       type: [String],
       default: []
     },
     experience: {
+      type: Number,
+      default: 0
+    },
+    education: {
       type: String,
       default: ""
     },
-    education: {
+    resume: {
       type: String,
       default: ""
     },
@@ -91,9 +80,7 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
-
     parsedData: parsedDataSchema,
-
     refreshToken: {
       type: String,
       default: null,
@@ -105,18 +92,19 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-
 userSchema.pre("save", function (next) {
   if (this.role === "recruiter" || this.role === "admin") {
     this.skills = undefined;
     this.experience = undefined;
     this.education = undefined;
+    this.resume = undefined;
     this.resumeUrl = undefined;
     this.resumeUpdatedAt = undefined;
     this.parsedData = undefined;
   }
   next();
 });
+
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
@@ -129,8 +117,6 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-
-
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
@@ -142,6 +128,5 @@ userSchema.statics.hashPassword = async function (password) {
 userSchema.statics.comparePassword = async function (enteredPassword, hashedPassword) {
   return bcrypt.compare(enteredPassword, hashedPassword);
 };
-
 
 export default mongoose.model("User", userSchema);

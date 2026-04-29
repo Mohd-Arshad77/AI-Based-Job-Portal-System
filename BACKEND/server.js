@@ -37,6 +37,7 @@ app.get("/", (req, res) => {
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/resume", resumeRoutes);
 app.use("/api/jobs", jobRoutes);

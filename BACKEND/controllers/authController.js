@@ -11,7 +11,7 @@ const sanitizeUser = (user) => ({
   email: user.email,
   role: user.role
 });
-// ================= GOOGLE AUTH =================
+
 export const googleAuth = asyncHandler(async (req, res) => {
   const { credential } = req.body;
 
@@ -29,12 +29,12 @@ export const googleAuth = asyncHandler(async (req, res) => {
 
   if (!user) {
     const randomPassword = crypto.randomBytes(16).toString("hex");
-    const hashedPassword = await User.hashPassword(randomPassword);
 
+    // CHANGED: Removed manual hashing here
     user = await User.create({
       name,
       email: normalizedEmail,
-      password: hashedPassword,
+      password: randomPassword, // Send raw password, Mongoose will hash it
       role: "user",
       isVerified: true
     });
@@ -95,12 +95,10 @@ export const register = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "User already exists" });
   }
 
-  const hashedPassword = await User.hashPassword(password);
-
   const user = await User.create({
     name,
     email: normalizedEmail,
-    password: hashedPassword,
+    password: password,
     role: "user",
     isVerified: false,
     verificationCode: otp
@@ -148,16 +146,10 @@ export const verifyUserOTP = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     token: accessToken,
-    user: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role
-    }
+    user: sanitizeUser(user)
   });
 });
 
-// ================= LOGIN =================
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -193,7 +185,6 @@ export const login = asyncHandler(async (req, res) => {
   });
 });
 
-// ================= LOGOUT =================
 export const logout = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 

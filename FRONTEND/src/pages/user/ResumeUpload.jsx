@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UploadCloud, FileText, CheckCircle2, Sparkles, Cpu, Briefcase, X } from "lucide-react";
 import Layout from "../../components/Layout.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -6,14 +6,62 @@ import { profileApi } from "../../services/api.js";
 
 function ResumeUpload() {
   const { setUser } = useAuth();
+  const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
+  const [resume, setResume] = useState("");
   const [parsed, setParsed] = useState(null);
   const [message, setMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const { data } = await profileApi.getProfile();
+        setUser(data);
+        setResume(data.resume || data.resumeUrl || "");
+      } catch (error) {
+        setMessage(error.response?.data?.message || "Could not load profile.");
+      }
+    };
+
+    loadProfile();
+  }, [setUser]);
+
+  const getResumeFileName = (resumePath) => {
+    if (!resumePath) return "";
+    return resumePath.split("/").pop();
+  };
+
+  const handleFileChange = async (selectedFile) => {
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    setParsed(null);
+    setIsUploading(true);
+    setMessage("");
+
+    const formData = new FormData();
+    formData.append("resume", selectedFile);
+
+    try {
+      const { data } = await profileApi.uploadResume(formData);
+      setUser(data.user);
+      setResume(data.user?.resume || data.resume || data.user?.resumeUrl || "");
+      setMessage("Resume uploaded successfully.");
+    } catch (error) {
+      setFile(null);
+      setMessage(error.response?.data?.message || "Could not upload resume. Please try again.");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!file) {
+    if (!resume || !file) {
       setMessage("Select a PDF resume first.");
       return;
     }
@@ -24,10 +72,11 @@ function ResumeUpload() {
     formData.append("resume", file);
 
     try {
-      const { data: uploadData } = await profileApi.uploadResume(formData);
-      setUser(uploadData.user);
       const { data } = await profileApi.parseResume(formData);
       setParsed(data.parsedData);
+      const { data: profileData } = await profileApi.getProfile();
+      setUser(profileData);
+      setResume(profileData.resume || profileData.resumeUrl || "");
       setMessage("Resume successfully analyzed and synced.");
     } catch (error) {
       setParsed(null);
@@ -52,22 +101,21 @@ function ResumeUpload() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {!file ? (
-                <label className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-10 transition-all hover:border-indigo-300 hover:bg-indigo-50/50">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => handleFileChange(e.target.files?.[0])}
+              />
+
+              {!file && !resume ? (
+                <label onClick={() => fileInputRef.current?.click()} className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-10 transition-all hover:border-indigo-300 hover:bg-indigo-50/50">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
                     <UploadCloud className="h-6 w-6 text-slate-400 group-hover:text-indigo-600" />
                   </div>
                   <span className="text-sm font-semibold text-indigo-950">Click to upload PDF</span>
                   <span className="mt-1 text-xs text-slate-500">Maximum file size 5MB</span>
-                  <input 
-                    type="file" 
-                    accept="application/pdf" 
-                    className="hidden" 
-                    onChange={(e) => {
-                      setFile(e.target.files?.[0] || null);
-                      setMessage("");
-                    }} 
-                  />
                 </label>
               ) : (
                 <div className="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
@@ -76,29 +124,27 @@ function ResumeUpload() {
                       <FileText className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-indigo-950">{file.name}</p>
+                      <p className="truncate text-sm font-semibold text-indigo-950">
+                        {file?.name || getResumeFileName(resume)}
+                      </p>
                       <p className="text-xs text-indigo-700/70">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                        {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : "Saved resume"}
                       </p>
                     </div>
                   </div>
                   <button 
                     type="button" 
-                    onClick={() => {
-                      setFile(null);
-                      setParsed(null);
-                      setMessage("");
-                    }} 
-                    className="ml-4 rounded-full p-1.5 text-slate-400 hover:bg-white hover:text-rose-500 transition-colors"
+                    onClick={() => fileInputRef.current?.click()} 
+                    className="ml-4 rounded-full p-1.5 text-xs font-semibold text-slate-400 hover:bg-white hover:text-rose-500 transition-colors"
                   >
-                    <X className="h-4 w-4" />
+                    Replace Resume
                   </button>
                 </div>
               )}
 
               <button 
                 type="submit" 
-                disabled={!file || isUploading}
+                disabled={!resume || !file || isUploading}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-900 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isUploading ? (

@@ -25,10 +25,10 @@ export const authApi = {
 };
 
 export const profileApi = {
-  getProfile: () => api.get("/users/profile"),
-  updateProfile: (payload) => api.put("/users/profile", payload),
+  getProfile: () => api.get("/user/profile"),
+  updateProfile: (payload) => api.put("/user/profile", payload),
   uploadResume: (formData) =>
-    api.post("/users/resume", formData, {
+    api.post("/user/upload-resume", formData, {
       headers: { "Content-Type": "multipart/form-data" }
     }),
   parseResume: (formData) =>

@@ -12,14 +12,29 @@ function Profile() {
     phone: user?.phone || "",
     location: user?.location || "",
     education: user?.education || "",
-    experience: user?.experience || "",
+    experience: user?.experience ?? "",
   });
   const [skillInput, setSkillInput] = useState("");
   const [skills, setSkills] = useState(user?.skills || []);
+  const [resume, setResume] = useState(user?.resume || user?.resumeUrl || "");
+  const [resumeUpdatedAt, setResumeUpdatedAt] = useState(user?.resumeUpdatedAt || "");
   const [profileMessage, setProfileMessage] = useState("");
   const [resumeMessage, setResumeMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingResume, setIsUploadingResume] = useState(false);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const { data } = await profileApi.getProfile();
+        setUser(data);
+      } catch (error) {
+        setProfileMessage(error.response?.data?.message || "Could not load profile.");
+      }
+    };
+
+    loadProfile();
+  }, [setUser]);
 
   useEffect(() => {
     setForm({
@@ -27,17 +42,22 @@ function Profile() {
       phone: user?.phone || "",
       location: user?.location || "",
       education: user?.education || "",
-      experience: user?.experience || ""
+      experience: user?.experience ?? ""
     });
     setSkills(user?.skills || []);
+    setResume(user?.resume || user?.resumeUrl || "");
+    setResumeUpdatedAt(user?.resumeUpdatedAt || "");
   }, [user]);
 
   const addSkill = (e) => {
     if (e.key === "Enter" && skillInput.trim()) {
       e.preventDefault();
 
-      if (!skills.includes(skillInput.trim())) {
-        setSkills([...skills, skillInput.trim()]);
+      const nextSkill = skillInput.trim();
+      const exists = skills.some((skill) => skill.toLowerCase() === nextSkill.toLowerCase());
+
+      if (!exists) {
+        setSkills([...skills, nextSkill]);
       }
 
       setSkillInput("");
@@ -65,15 +85,24 @@ function Profile() {
 
     try {
       const { data } = await profileApi.updateProfile({
-        name: form.name,
-        phone: form.phone,
-        location: form.location,
         education: form.education,
         experience: form.experience,
+        phone: form.phone,
+        location: form.location,
         skills: skills
       });
 
       setUser(data.user);
+      setForm({
+        name: data.user.name || "",
+        phone: data.user.phone || "",
+        location: data.user.location || "",
+        education: data.user.education || "",
+        experience: data.user.experience ?? ""
+      });
+      setSkills(data.user.skills || []);
+      setResume(data.user.resume || data.user.resumeUrl || "");
+      setResumeUpdatedAt(data.user.resumeUpdatedAt || "");
       setProfileMessage("Profile updated successfully.");
     } catch (error) {
       setProfileMessage(error.response?.data?.message || "Could not update profile.");
@@ -98,6 +127,8 @@ function Profile() {
     try {
       const { data } = await profileApi.uploadResume(formData);
       setUser(data.user);
+      setResume(data.user.resume || data.resume || data.user.resumeUrl || "");
+      setResumeUpdatedAt(data.user.resumeUpdatedAt || "");
       setResumeMessage("Resume updated successfully.");
     } catch (error) {
       setResumeMessage(error.response?.data?.message || "Could not upload resume.");
@@ -127,12 +158,12 @@ function Profile() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.doc,.docx"
+              accept="application/pdf"
               className="hidden"
               onChange={handleResumeChange}
             />
 
-            {user?.resumeUrl ? (
+            {resume ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left">
                 <div className="flex items-start gap-3">
                   <div className="rounded-xl bg-blue-100 p-3 text-blue-600">
@@ -140,10 +171,10 @@ function Profile() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-slate-800">
-                      {getResumeFileName(user.resumeUrl)}
+                      {getResumeFileName(resume)}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Uploaded on {formatResumeDate(user.resumeUpdatedAt)}
+                      Uploaded on {formatResumeDate(resumeUpdatedAt)}
                     </p>
                   </div>
                 </div>
@@ -216,7 +247,7 @@ function Profile() {
                 <label className={labelStyle}><Code size={14} /> Skills & Technologies</label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {skills.map((skill) => (
-                    <span key={skill} className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl text-xs font-bold border border-blue-100">
+                    <span key={skill} onClick={() => removeSkill(skill)} className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl text-xs font-bold border border-blue-100">
                       {skill}
                       <button type="button" onClick={() => removeSkill(skill)} className="hover:text-blue-800"><X size={12} /></button>
                     </span>

@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get("/profile", protect, authorizeRoles("user"), getProfile);
 router.put("/profile", protect, authorizeRoles("user"), updateProfile);
+router.post("/upload-resume", protect, authorizeRoles("user"), upload.single("resume"), uploadResume);
 router.post("/resume", protect, authorizeRoles("user"), upload.single("resume"), uploadResume);
 router.get("/recommended-jobs", protect, authorizeRoles("user"), getRecommendedJobs);
 

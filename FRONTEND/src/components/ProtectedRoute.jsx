@@ -6,9 +6,9 @@ function ProtectedRoute({ roles = [] }) {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
-  console.log("USER:", user);
-  console.log("LOADING:", loading);
-  console.log("PATH:", location.pathname);
+  // console.log("USER:", user);
+  // console.log("LOADING:", loading);
+  // console.log("PATH:", location.pathname);
 
   if (loading) {
     return (
