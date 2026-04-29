@@ -18,8 +18,7 @@ const sanitizeUser = (user) => {
     skills: user.skills,
     experience: user.experience,
     education: user.education,
-    resume: user.resume || user.resumeUrl || "",
-    resumeUrl: user.resumeUrl,
+    resumeUrl: user.resumeUrl || "",
     resumeUpdatedAt: user.resumeUpdatedAt,
     parsedData: user.parsedData,
     createdAt: user.createdAt
@@ -86,7 +85,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     throw new Error("User not found.");
   }
 
-  const { name, phone, location, experience, education, skills } = req.body;
+  const { name, phone, location, experience, education, skills, parsedData } = req.body;
   const updates = {};
 
   if (name !== undefined) updates.name = name;
@@ -103,13 +102,21 @@ export const updateProfile = asyncHandler(async (req, res) => {
     updates.experience = parsedExperience;
   }
   if (education !== undefined) updates.education = education;
+
+  // Issue 2 Fix: skills uses $set (via updates object) to FULLY REPLACE the array —
+  // never $push or $addToSet — so old resume skills are wiped on new resume save.
   if (skills !== undefined) updates.skills = normalizeSkills(skills);
 
+  // Issue 2 Fix: also persist parsedData when sent from the Resume page's
+  // "Save Profile Data" button, completely overwriting the old subdocument.
+  if (parsedData !== undefined) updates.parsedData = parsedData;
+
   const updatedUser = Object.keys(updates).length > 0
-    ? await User.findByIdAndUpdate(req.user._id, updates, {
-      new: true,
-      runValidators: true
-    })
+    ? await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: updates },   // explicit $set — guarantees full overwrite of every field
+        { new: true, runValidators: true }
+      )
     : user;
 
   res.json({
@@ -140,7 +147,6 @@ export const uploadResume = asyncHandler(async (req, res) => {
   const updatedUser = await User.findByIdAndUpdate(
     req.user._id,
     {
-      resume: resumeUrl,
       resumeUrl: resumeUrl,
       resumeUpdatedAt: new Date()
     },
@@ -152,7 +158,6 @@ export const uploadResume = asyncHandler(async (req, res) => {
 
   res.json({
     message: "Resume updated successfully",
-    resume: updatedUser.resume || updatedUser.resumeUrl,
     resumeUrl: updatedUser.resumeUrl,
     user: sanitizeUser(updatedUser)
   });

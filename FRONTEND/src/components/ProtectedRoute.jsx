@@ -34,7 +34,7 @@ function ProtectedRoute({ roles = [] }) {
       return <Navigate to="/recruiter/manage" replace />;
     }
     if (user.role === "user") {
-      return <Navigate to="/dashboard" replace />;
+      return <Navigate to="/" replace />;
     }
 
     return <Navigate to="/login" replace />;

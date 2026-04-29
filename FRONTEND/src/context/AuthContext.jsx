@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await authApi.verifyOtp(values);
 
-      // ✅ LOGIN USER AFTER OTP
+      // ✅ IMPORTANT
       const nextUser = applySession(data);
 
       return { success: true, user: nextUser };

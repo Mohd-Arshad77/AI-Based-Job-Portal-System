@@ -68,10 +68,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: ""
     },
-    resume: {
-      type: String,
-      default: ""
-    },
     resumeUrl: {
       type: String,
       default: ""
@@ -97,7 +93,6 @@ userSchema.pre("save", function (next) {
     this.skills = undefined;
     this.experience = undefined;
     this.education = undefined;
-    this.resume = undefined;
     this.resumeUrl = undefined;
     this.resumeUpdatedAt = undefined;
     this.parsedData = undefined;

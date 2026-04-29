@@ -1,8 +1,13 @@
 import { extractTextFromPDF } from "../services/pdfService.js";
-import User from "../models/User.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { parseResumeText } from "../utils/resumeParser.js";
 
+/**
+ * POST /api/resume/parse
+ * Issue 1 Fix: PURE extraction only — does NOT write to the DB.
+ * Returns parsedData as JSON. The frontend must explicitly call
+ * PUT /api/user/profile to persist the data.
+ */
 export const parseResume = asyncHandler(async (req, res) => {
   if (!req.file || req.file.mimetype !== "application/pdf") {
     res.status(400);
@@ -11,36 +16,16 @@ export const parseResume = asyncHandler(async (req, res) => {
 
   const text = await extractTextFromPDF(req.file.buffer);
 
-  if (!text) {
-    throw new Error("Failed to extract text");
+  if (!text || !text.trim()) {
+    res.status(422);
+    throw new Error("Could not extract text from this PDF. The file may be image-based or corrupted.");
   }
 
   const parsedData = parseResumeText(text);
 
-  const updateQuery = {
-    $set: { parsedData: parsedData }
-  };
-
-  if (parsedData.skills && parsedData.skills.length > 0) {
-    updateQuery.$addToSet = {
-      skills: { $each: parsedData.skills }
-    };
-  }
-
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    updateQuery,
-    { new: true }
-  );
-
-  if (!user) {
-    res.status(404);
-    throw new Error("User not found.");
-  }
-
+  // Return extracted data only — zero DB writes
   res.json({
     message: "Resume parsed successfully",
-    parsedData: parsedData,
-    resumeText: text
+    parsedData: parsedData
   });
 });
