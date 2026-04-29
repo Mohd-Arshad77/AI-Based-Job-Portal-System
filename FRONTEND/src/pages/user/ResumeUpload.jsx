@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { UploadCloud, FileText, CheckCircle2, Sparkles, Cpu, Briefcase, X, Save } from "lucide-react";
+import {
+  UploadCloud, FileText, CheckCircle2, Sparkles,
+  Cpu, Briefcase, X, Save, AlertCircle, Loader2, ArrowRight
+} from "lucide-react";
 import Layout from "../../components/Layout.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { profileApi } from "../../services/api.js";
@@ -17,10 +20,17 @@ function ResumeUpload() {
   // `savedData` = data already saved in DB (shown on revisit)
   const [savedData, setSavedData] = useState(null);
 
-  const [message, setMessage] = useState("");
-  const [isUploading, setIsUploading] = useState(false);   // uploading the file
-  const [isExtracting, setIsExtracting] = useState(false); // running AI extraction
-  const [isSavingProfile, setIsSavingProfile] = useState(false); // saving parsed data to DB
+  const [isUploading, setIsUploading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Custom Toast State
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
+  };
 
   // ---------- Load profile on mount ----------
   useEffect(() => {
@@ -28,13 +38,12 @@ function ResumeUpload() {
       try {
         const { data } = await profileApi.getProfile();
         setUser(data);
-        // Task 3: Show already-saved data without confusion
         setResumeUrl(data.resumeUrl || "");
         if (data.parsedData && (data.parsedData.summary || (data.parsedData.skills || []).length > 0)) {
           setSavedData(data.parsedData);
         }
       } catch (error) {
-        setMessage(error.response?.data?.message || "Could not load profile.");
+        showToast(error.response?.data?.message || "Could not load profile.", "error");
       }
     };
     loadProfile();
@@ -50,9 +59,8 @@ function ResumeUpload() {
     if (!selectedFile) return;
 
     setFile(selectedFile);
-    setParsed(null); // reset any previous extraction preview
+    setParsed(null);
     setIsUploading(true);
-    setMessage("");
 
     const formData = new FormData();
     formData.append("resume", selectedFile);
@@ -60,92 +68,84 @@ function ResumeUpload() {
     try {
       const { data } = await profileApi.uploadResume(formData);
       setUser(data.user);
-      // Task 4: only use resumeUrl
       setResumeUrl(data.user?.resumeUrl || "");
-      setMessage("Resume uploaded. Click \"Extract Insights\" to analyse it.");
+      showToast("Resume uploaded successfully.", "success");
     } catch (error) {
       setFile(null);
-      setMessage(error.response?.data?.message || "Could not upload resume. Please try again.");
+      showToast(error.response?.data?.message || "Could not upload resume.", "error");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  // ---------- STEP 2: Extract (parse only — does NOT auto-save profile skills) ----------
+  // ---------- STEP 2: Extract ----------
   const handleExtract = async (e) => {
     e.preventDefault();
     if (!resumeUrl && !file) {
-      setMessage("Please upload a resume first.");
+      showToast("Please upload a resume first.", "error");
       return;
     }
 
     setIsExtracting(true);
-    setMessage("");
 
     const formData = new FormData();
-    // Send the already-uploaded file for parsing (or re-use the current file object)
     if (file) formData.append("resume", file);
 
     try {
       const { data } = await profileApi.parseResume(formData);
-      // Show extracted data in UI — user must explicitly save it
       setParsed(data.parsedData);
-      setMessage("Extraction complete! Review the data below, then click \"Save Profile Data\".");
+      showToast("Extraction complete! Review your data.", "success");
     } catch (error) {
       setParsed(null);
-      setMessage(error.response?.data?.message || "Could not parse resume. Please try again.");
+      showToast(error.response?.data?.message || "Could not parse resume.", "error");
     } finally {
       setIsExtracting(false);
     }
   };
 
-  // ---------- STEP 3: Save parsed data explicitly ----------
+  // ---------- STEP 3: Save parsed data ----------
   const handleSaveProfile = async () => {
     if (!parsed) return;
     setIsSavingProfile(true);
-    setMessage("");
 
     try {
-      // Issue 2 Fix: send BOTH skills and the full parsedData object.
-      // The backend uses $set, which completely replaces the old arrays —
-      // so skills from a previous resume are wiped on every new save.
       const { data } = await profileApi.updateProfile({
         skills: parsed.skills || [],
-        parsedData: parsed                // ← persists summary + projects too
+        parsedData: parsed
       });
       setUser(data.user);
-      setSavedData(parsed); // promote preview → saved
-      setParsed(null);       // clear preview
+      setSavedData(parsed);
+      setParsed(null);
       setFile(null);
-      setMessage("Profile data saved successfully!");
+      showToast("Profile data saved successfully!", "success");
     } catch (error) {
-      setMessage(error.response?.data?.message || "Could not save profile data.");
+      showToast(error.response?.data?.message || "Could not save profile data.", "error");
     } finally {
       setIsSavingProfile(false);
     }
   };
 
-  // The data to display in the right panel (preview takes priority over saved)
   const displayData = parsed || savedData;
-  const isSaved = !parsed && !!savedData; // true when showing DB data (not a fresh preview)
+  const isSaved = !parsed && !!savedData;
 
   return (
     <Layout
       title="Resume Intelligence"
       subtitle="Upload your resume and let our AI extract your latent skills and achievements."
     >
-      <div className="mt-8 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[0.8fr_1.2fr] max-w-7xl mx-auto pb-24">
 
         {/* ── Left Panel: Upload & Extract ── */}
         <div className="flex flex-col gap-6">
-          <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
+          <div className="rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm transition-all hover:shadow-md">
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-indigo-950">Document Upload</h2>
-              <p className="mt-1 text-sm text-slate-500">Provide your latest CV in PDF format.</p>
+              <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
+                Document Upload
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500 font-medium">Provide your latest CV in PDF format.</p>
             </div>
 
-            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -154,195 +154,215 @@ function ResumeUpload() {
               onChange={(e) => handleFileChange(e.target.files?.[0])}
             />
 
-            {/* Drop zone / file preview */}
             {!file && !resumeUrl ? (
               <label
                 onClick={() => fileInputRef.current?.click()}
-                className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-10 transition-all hover:border-indigo-300 hover:bg-indigo-50/50"
+                className={`group flex cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-zinc-200 bg-zinc-50 py-12 transition-all hover:border-violet-400 hover:bg-violet-50/50 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
               >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm group-hover:bg-indigo-100 transition-colors">
-                  <UploadCloud className="h-6 w-6 text-slate-400 group-hover:text-indigo-600" />
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm group-hover:bg-violet-100 group-hover:text-violet-600 transition-colors text-zinc-400">
+                  {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <UploadCloud className="h-7 w-7" />}
                 </div>
-                <span className="text-sm font-semibold text-indigo-950">Click to upload PDF</span>
-                <span className="mt-1 text-xs text-slate-500">Maximum file size 5MB</span>
+                <span className="text-[15px] font-bold text-zinc-800">
+                  {isUploading ? "Uploading..." : "Click to upload PDF"}
+                </span>
+                <span className="mt-1.5 text-xs text-zinc-500 font-medium">Maximum file size 5MB</span>
               </label>
             ) : (
-              <div className="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
-                    <FileText className="h-5 w-5" />
+              <div className="flex items-center justify-between rounded-[20px] border border-zinc-200 bg-zinc-50 p-4 transition-all hover:border-violet-200">
+                <div className="flex items-center gap-4 overflow-hidden">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                    <FileText className="h-6 w-6" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-indigo-950">
+                    <p className="truncate text-[15px] font-bold text-zinc-900">
                       {file?.name || getResumeFileName(resumeUrl)}
                     </p>
-                    <p className="text-xs text-indigo-700/70">
-                      {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : "Saved resume"}
+                    <p className="text-xs text-zinc-500 font-medium mt-0.5">
+                      {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : "Saved resume document"}
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="ml-4 rounded-full p-1.5 text-xs font-semibold text-slate-400 hover:bg-white hover:text-rose-500 transition-colors"
+                  disabled={isUploading || isExtracting}
+                  className="ml-4 rounded-xl px-3 py-2 text-xs font-bold text-zinc-500 hover:bg-white hover:text-zinc-900 hover:shadow-sm border border-transparent hover:border-zinc-200 transition-all disabled:opacity-50"
                 >
                   Replace
                 </button>
               </div>
             )}
 
-            {/* Upload spinner shown when uploading */}
-            {isUploading && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-indigo-700">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-700" />
-                Uploading file…
-              </div>
-            )}
-
-            {/* ── Extract Insights button (STEP 2) ── */}
-            <form onSubmit={handleExtract} className="mt-6">
+            <form onSubmit={handleExtract} className="mt-8">
               <button
                 type="submit"
                 disabled={(!resumeUrl && !file) || isExtracting || isUploading}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-900 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-4 py-4 text-[15px] font-bold text-white transition-all hover:bg-zinc-800 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none overflow-hidden relative group"
               >
+                {/* Subtle animated background gradient for extraction state */}
+                {isExtracting && (
+                  <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+                )}
+
                 {isExtracting ? (
                   <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-                    Analysing Document…
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Analysing Document...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-4 w-4" />
-                    Extract Insights
+                    <Sparkles className="h-5 w-5 text-violet-300 group-hover:text-violet-200 transition-colors" />
+                    Extract AI Insights
+                    <ArrowRight className="h-4 w-4 ml-1 opacity-50 group-hover:opacity-100 transition-opacity" />
                   </>
                 )}
               </button>
             </form>
-
-            {/* ── Save Profile Data button (STEP 3) — only shown after a fresh extraction ── */}
-            {parsed && (
-              <button
-                type="button"
-                onClick={handleSaveProfile}
-                disabled={isSavingProfile}
-                className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSavingProfile ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-                    Saving…
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    Save Profile Data
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Status message */}
-            {message && (
-              <div className={`mt-6 flex items-start gap-3 rounded-xl p-4 text-sm ${
-                message.includes("success") || message.includes("Review") || message.includes("Click")
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
-                  : "bg-rose-50 text-rose-800 border border-rose-100"
-              }`}>
-                {message.includes("success") || message.includes("Review") || message.includes("Click") ? (
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                ) : (
-                  <X className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
-                )}
-                <p className="font-medium">{message}</p>
-              </div>
-            )}
           </div>
         </div>
 
         {/* ── Right Panel: Cognitive Profile Data ── */}
-        <div className="flex flex-col rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
-          <div className="mb-6 flex items-center justify-between border-b border-slate-100 pb-4">
-            <h2 className="text-xl font-bold text-indigo-950 flex items-center gap-2">
-              <Cpu className="h-5 w-5 text-indigo-600" />
+        <div className="flex flex-col rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm relative overflow-hidden">
+
+          {/* Subtle background decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-5 relative z-10">
+            <h2 className="text-xl font-extrabold text-zinc-900 flex items-center gap-2">
+              <Cpu className="h-6 w-6 text-violet-600" />
               Cognitive Profile Data
             </h2>
             {displayData && (
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold border ${
-                isSaved
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                  : "bg-amber-50 text-amber-700 border-amber-100"
-              }`}>
-                {isSaved ? "Saved to Profile" : "Preview — Not Saved Yet"}
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold tracking-wide uppercase border ${isSaved
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : "bg-amber-50 text-amber-700 border-amber-200 animate-pulse"
+                }`}>
+                {isSaved ? "Saved to Profile" : "Unsaved Preview"}
               </span>
             )}
           </div>
 
           {displayData ? (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="space-y-8 relative z-10">
+
               {/* Summary */}
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Professional Summary</p>
-                <div className="rounded-xl border border-slate-100 bg-slate-50 p-5">
-                  <p className="text-sm leading-relaxed text-slate-700">
-                    {displayData.summary || "No summary available."}
-                  </p>
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both">
+                <h3 className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zinc-400">Professional Summary</h3>
+                <div className="rounded-[20px] border border-zinc-100 bg-zinc-50/50 p-6 leading-relaxed text-[15px] text-zinc-700 font-medium">
+                  {displayData.summary || "No summary available."}
                 </div>
               </div>
 
               {/* Skills */}
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Extracted Skills</p>
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100 fill-mode-both">
+                <h3 className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zinc-400">Extracted Technologies & Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {(displayData.skills || []).length > 0 ? (
                     displayData.skills.map((skill) => (
                       <span
                         key={skill}
-                        className="rounded-md bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700"
+                        className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-bold text-zinc-800 shadow-sm transition-all hover:border-violet-300 hover:text-violet-700"
                       >
                         {skill}
                       </span>
                     ))
                   ) : (
-                    <span className="text-sm text-slate-500">No specific skills detected.</span>
+                    <span className="text-[14px] text-zinc-500 font-medium italic">No specific skills detected.</span>
                   )}
                 </div>
               </div>
 
               {/* Projects */}
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Notable Projects &amp; Experience</p>
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200 fill-mode-both">
+                <h3 className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zinc-400">Notable Experience & Projects</h3>
                 {(displayData.projects || []).length > 0 ? (
-                  <ul className="space-y-3">
+                  <ul className="space-y-4">
                     {displayData.projects.map((project, index) => (
                       <li
                         key={index}
-                        className="flex items-start gap-3 rounded-xl border border-slate-100 p-4 transition-colors hover:border-indigo-100 hover:bg-slate-50/50"
+                        className="group flex items-start gap-4 rounded-[20px] border border-zinc-100 bg-white p-5 transition-all hover:border-violet-200 hover:shadow-md"
                       >
-                        <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                        <span className="text-sm leading-relaxed text-slate-700">{project}</span>
+                        <div className="mt-0.5 rounded-lg bg-zinc-100 p-2 text-zinc-400 group-hover:bg-violet-100 group-hover:text-violet-600 transition-colors">
+                          <Briefcase className="h-4 w-4" />
+                        </div>
+                        <span className="text-[14px] leading-relaxed text-zinc-700 font-medium">{project}</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-slate-500">No project details detected.</p>
+                  <p className="text-[14px] text-zinc-500 font-medium italic">No project details detected.</p>
                 )}
               </div>
             </div>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50">
-                <Sparkles className="h-8 w-8 text-slate-300" />
+            <div className="flex flex-1 flex-col items-center justify-center py-16 text-center relative z-10">
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-zinc-50 border border-zinc-100 shadow-sm">
+                <Sparkles className="h-10 w-10 text-zinc-300" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">Awaiting Document</h3>
-              <p className="mt-2 max-w-sm text-sm text-slate-500">
-                Upload your resume on the left, then click "Extract Insights" to see how our AI translates your experience into structured data.
+              <h3 className="text-xl font-extrabold text-zinc-900">Awaiting Document</h3>
+              <p className="mt-3 max-w-md text-[15px] font-medium text-zinc-500 leading-relaxed">
+                Upload your resume and click <strong className="text-zinc-700">Extract AI Insights</strong> to see how our engine translates your experience into structured data.
               </p>
             </div>
           )}
         </div>
-
       </div>
+
+      {/* Floating Save Action Bar (Appears when there is unsaved parsed data) */}
+      <div
+        className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 transform ${parsed ? "translate-y-0 opacity-100 scale-100" : "translate-y-20 opacity-0 scale-95 pointer-events-none"
+          }`}
+      >
+        <div className="bg-zinc-900 text-white pl-6 pr-2 py-2 rounded-full shadow-2xl flex items-center gap-6 border border-zinc-800">
+          <span className="text-[14px] font-medium tracking-wide flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-500"></span>
+            </span>
+            New insights ready to save
+          </span>
+          <button
+            onClick={handleSaveProfile}
+            disabled={isSavingProfile}
+            className="flex items-center gap-2 bg-white text-zinc-900 px-6 py-2.5 rounded-full font-bold text-[14px] transition-transform hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100"
+          >
+            {isSavingProfile ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {isSavingProfile ? "Saving..." : "Save to Profile"}
+          </button>
+        </div>
+      </div>
+
+      {/* Modern Toast Notification Overlay */}
+      <div
+        className={`fixed top-8 right-8 z-50 transition-all duration-400 transform ${toast.show ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0 pointer-events-none"
+          }`}
+      >
+        <div className="bg-white px-5 py-4 rounded-2xl shadow-xl border border-zinc-100 flex items-center gap-4 min-w-[300px]">
+          {toast.type === "success" ? (
+            <CheckCircle2 size={24} className="text-emerald-500" />
+          ) : (
+            <AlertCircle size={24} className="text-rose-500" />
+          )}
+          <div className="flex-1">
+            <p className="text-[15px] font-bold text-zinc-900">{toast.message}</p>
+          </div>
+          <button onClick={() => setToast({ ...toast, show: false })} className="text-zinc-400 hover:text-zinc-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes shimmer {
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
