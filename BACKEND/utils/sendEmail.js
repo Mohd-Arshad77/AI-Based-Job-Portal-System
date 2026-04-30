@@ -3,7 +3,9 @@ import nodemailer from "nodemailer";
 const sendEmail = async (options) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "Gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -14,14 +16,15 @@ const sendEmail = async (options) => {
       from: `JobFlow Admin <${process.env.EMAIL_USER}>`,
       to: options.email,
       subject: options.subject,
-      html: options.html, 
+      html: options.html,
     };
 
     await transporter.sendMail(mailOptions);
     console.log("✅ Email sent successfully to:", options.email);
+
   } catch (error) {
-    console.error("❌ Error sending email:", error);
-    throw new Error("Email could not be sent");
+    console.error("❌ Error sending email:", error.message);
+    return null;
   }
 };
 
